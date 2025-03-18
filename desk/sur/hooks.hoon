@@ -17,7 +17,7 @@
 ::
 ++  hook
   $:  id=id-hook
-      version=%0
+      version=%1
       name=@t
       meta=data:m
       src=(unit @t)
@@ -25,6 +25,8 @@
       state=vase
       config=(map nest config)
   ==
+::
+++  hook-version  %1
 ::  $hooks: collection of hooks, the order they should be run in, hooks
 ::          running on a schedule, and any hooks waiting to run
 ++  hooks
@@ -184,4 +186,28 @@
       order=(list id-hook)
       crons=(list [id-hook job])
   ==
+::
+++  old
+  |%
+  ++  v0
+    |%
+    ++  hook
+      $:  id=id-hook
+          version=%0
+          name=@t
+          meta=data:m
+          src=@t
+          compiled=(unit vase)
+          state=vase
+          config=(map nest config)
+      ==
+    ::
+    ++  hooks
+      $:  hooks=(map id-hook hook)
+          order=(map nest (list id-hook))
+          crons=(map id-hook cron)
+          waiting=(map id-wait [=origin waiting-hook])
+      ==
+    --
+  --
 --

@@ -17,7 +17,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %7
+    $:  %8
         =v-channels:c
         =hooks:h
         =pimp:imp
@@ -106,12 +106,33 @@
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  ?>  ?=(%7 -.old)
+  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
+  ?>  ?=(%8 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-7 state-6 state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-7  current-state
+  +$  versioned-state
+    $%  state-8  state-7  state-6
+        state-5  state-4  state-3
+        state-2  state-1  state-0
+    ==
+  +$  state-8  current-state
+  +$  state-7
+    $:  %7
+        =v-channels:c
+        =hooks:v0:old:h
+        =pimp:imp
+    ==
+  ++  state-7-to-8
+    |=  state-7
+    ^-  state-8
+    :+  %8  v-channels
+    :_  pimp
+    :_  [order crons waiting]:hooks
+    %-  ~(run by hooks.hooks)
+    |=  old=hook:v0:old:h
+    ^-  hook:h
+    [id %1 name meta `src compiled state config]:old
   +$  state-6
     $:  %6
         =v-channels:c
@@ -120,7 +141,7 @@
   ++  state-6-to-7
     |=  state-6
     ^-  state-7
-    [%7 v-channels *hooks:h pimp]
+    [%7 v-channels *hooks:v0:old:h pimp]
   +$  state-5
     $:  %5
         =v-channels:v6:old:c
@@ -1069,7 +1090,7 @@
       ?:  ?=(%| -.result)
         ((slog 'compilation result:' p.result) ~)
       `p.result
-    =.  hook  [id %0 name *data:m src compiled !>(~) ~]
+    =.  hook  [id hook-version:h name *data:m src compiled !>(~) ~]
     =/  error=(unit tang)
       ?:(?=(%& -.result) ~ `p.result)
     (ho-give-response [%set id name src meta.hook error])
