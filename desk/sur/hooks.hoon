@@ -20,7 +20,7 @@
       version=%0
       name=@t
       meta=data:m
-      src=@t
+      src=(unit @t)
       compiled=(unit vase)
       state=vase
       config=(map nest config)
@@ -54,8 +54,8 @@
 ::
 ::  $action: what we can do with a hook
 +$  action
-  $%  [%add name=@t src=@t]
-      [%edit id=id-hook name=(unit @t) src=(unit @t) meta=(unit data:m)]
+  $%  [%add name=@t hok=$@(@t vase)]
+      [%edit id=id-hook name=(unit @t) hok=(unit $@(@t vase)) meta=(unit data:m)]
       [%del id=id-hook]
       [%order =nest seq=(list id-hook)]
       [%config id=id-hook =nest =config]
@@ -65,7 +65,7 @@
 ::
 ::  $response: the result of an action on a hook
 +$  response
-  $%  [%set id=id-hook name=@t src=@t meta=data:m error=(unit tang)]
+  $%  [%set id=id-hook name=@t src=(unit @t) meta=data:m error=(unit tang)]
       [%gone id=id-hook]
       [%order =nest seq=(list id-hook)]
       [%config id=id-hook =nest =config]

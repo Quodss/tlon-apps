@@ -31,7 +31,7 @@
         version+s+`@tas`version.hk
         name+s+name.hk
         meta+(meta:enjs:gj meta.hk)
-        src+s+src.hk
+        src+?~(src.hk ~ s+u.src.hk)
         compiled+b+?=(^ compiled.hk)
         config+(config-map config.hk)
     ==
@@ -97,11 +97,11 @@
       %rest  (rest-rsp +.r)
     ==
   ++  set-rsp
-    |=  [i=id-hook:h name=@t src=@t meta=data:m error=(unit ^tang)]
+    |=  [i=id-hook:h name=@t src=(unit @t) meta=data:m error=(unit ^tang)]
     %-  pairs
     :~  id+(id i)
         name+s+name
-        src+s+src
+        src+?~(src ~ s+u.src)
         meta+(meta:enjs:gj meta)
         error+?~(error ~ (tang u.error))
     ==

@@ -355,7 +355,7 @@
     ?>  =(our src):bowl
     ?-  -.action
         %add
-      ho-abet:(ho-add:ho-core [name src]:action)
+      ho-abet:(ho-add:ho-core [name hok]:action)
     ::
         %edit
       ho-abet:(ho-edit:(ho-abed:ho-core id.action) +>.action)
@@ -1056,14 +1056,16 @@
     ho-core(id i, hook (~(got by hooks.hooks) i))
   ::
   ++  ho-add
-    |=  [name=@t src=@t]
+    |=  [name=@t hok=$@(@t vase)]
     ^+  ho-core
     =.  id
       =+  i=(end 7 eny.bowl)
       |-(?:((~(has by hooks.hooks) i) $(i +(i)) i))
+    =/  src=(unit @t)  ?@(hok `hok ~)
     =/  result=(each vase tang)
-      (compile:utils src)
-    =/  compiled
+      ?^  hok  &+hok
+      (compile:utils +.src)
+    =/  compiled=(unit vase)
       ?:  ?=(%| -.result)
         ((slog 'compilation result:' p.result) ~)
       `p.result
@@ -1071,17 +1073,24 @@
     =/  error=(unit tang)
       ?:(?=(%& -.result) ~ `p.result)
     (ho-give-response [%set id name src meta.hook error])
+  ::
   ++  ho-edit
-    |=  [name=(unit @t) src=(unit @t) meta=(unit data:m)]
-    =?  src.hook  ?=(^ src)  u.src
-    =/  result=(each vase tang)
-      (compile:utils src.hook)
-    ?:  ?=(%| -.result)
+    |=  [name=(unit @t) hok=(unit $@(@t vase)) meta=(unit data:m)]
+    =?  src.hook  ?=(^ hok)  ?@(u.hok `u.hok ~)
+    =/  result-recompiled=(unit (each vase tang))
+      ?~  src.hook  ~
+      `(compile:utils u.src.hook)
+    ?:  ?=([%~ %| *] result-recompiled)
       %-  ho-give-response
-      [%set id name.hook src.hook meta.hook `p.result]
+      [%set id name.hook src.hook meta.hook `p.u.result-recompiled]
     =?  name.hook  ?=(^ name)  u.name
     =?  meta.hook  ?=(^ meta)  u.meta
-    =.  compiled.hook  `p.result
+    =/  new-compiled=(unit vase)
+      ?:  ?=([%~ %& *] result-recompiled)
+        `p.u.result-recompiled
+      ?:  ?=([%~ ^] hok)  `u.hok
+      ~
+    =?  compiled.hook  ?=(^ new-compiled)  `u.new-compiled
     %-  ho-give-response
     [%set id name.hook src.hook meta.hook ~]
   ::
@@ -1328,7 +1337,7 @@
       ~(tap by hooks.template)
     |=  [=id-hook:h =hook:h]
     =/  result=(each vase tang)
-      (compile:utils src.hook)
+      (compile:utils (need src.hook)) :: XX can template have sourceless hooks?
     =/  compiled
       ?:  ?=(%| -.result)
         ((slog 'compilation result:' p.result) ~)
