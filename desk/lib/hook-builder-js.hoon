@@ -1,14 +1,16 @@
-/-  h=hooks
+/-  h=hooks, c=channels, cite
 /+  wasm=wasm-lia
 /*  bin  %wasm  /quick-js-emcc/wasm
 ::
 =*  cw            coin-wasm:wasm-sur:wasm
 =*  script-form   script-raw-form:lia-sur:wasm
+=*  script        script:lia-sur:wasm
 =*  stub  !!
 ::
 =<  builder
 |%
 +$  hook-gate  $-(args:h outcome:h)
++$  wild  (pair (set @) (map @ vase))
 ++  acc-mold  ::  accumulator type for ++run-once
   |-
   =*  acc-mold  $
@@ -19,6 +21,7 @@
       (map @ $-([@ @ @ @] (script-form @ acc-mold)))  ::  map @ -> ([ctx-u=@ this-u=@ argc-w=@ argv-u=@] => val-u=@)
   ::
       state=json
+      =wild  :: free idxes; map idx -> vase
   ==
 ::
 ++  arr  (arrows:wasm acc-mold)
@@ -28,18 +31,15 @@
   |=  [=event:h bowl:h]
   ^-  outcome:h
   =/  state-json  !<(json state.hook)
-  =/  event-json=json  (event-to-json event)
   ::
   ::  %&: head of return and new state
   ::  %|: QuickJS error and our label
-  =;  res=(each (pair json json) (pair cord cord))
+  =;  res=(each return:h (pair cord cord))
     ?:  ?=(%| -.res)
       [%| p.p.res q.p.res ~]
-    =/  out=(pair event-result:h (list effect:h))
-      (return-of-json p.p.res)
-    [%& out !>(q.p.res)]
+    [%& p.res]
   ::
-  =/  yil-mold  (each (pair json json) (pair cord cord))
+  =/  yil-mold  (each return:h (pair cord cord))
   %-  yield-need:wasm  =<  -
   %^  (run-once:wasm yil-mold acc-mold)  [bin imports]  %$
   =/  m  (script:lia-sur:wasm yil-mold acc-mold)
@@ -52,7 +52,10 @@
   ;<  run-u=@    try:m  (call-1 'QTS_NewRuntime' ~)
   ;<  ctx-u=@    try:m  (call-1 'QTS_NewContext' run-u 0 ~)
   ;<  fil-u=@    try:m  (malloc-write +(filename-len) filename)
-  ;<  ~          try:m  (set-acc run-u ctx-u fil-u ~ state-json)
+  =|  acc=acc-mold
+  =.  acc  acc(run-u run-u, ctx-u ctx-u, fil-u fil-u, state state-json)
+  =^  event-json=json  wild.acc  (event-to-json event wild.acc)
+  ;<  ~          try:m  (set-acc acc)
   ::
   ;<  err=(unit cord)  try:m  (make-function 'require' require)
   ?^  err  (return:m |+[u.err 'make require'])
@@ -77,17 +80,357 @@
   ?^  err  (return:m |+[u.err 'failed to call the exported function'])
   ;<  out=json         try:m  (load-json res-u)
   ;<  acc=acc-mold     try:m  get-acc
-  (return:m &+[out state.acc])
+  =/  res=(pair event-result:h (list effect:h))  (return-of-json out wild.acc)
+  (return:m &+[res !>(state.acc)])
 ::
 ::  XX check memory conventions, add free calls
 ::
+++  add-wild
+  |=  [vax=vase wild=(pair (set @) (map @ vase))]
+  ^-  [@ _wild]
+  ?~  p.wild
+    =/  idx-new=@  +((~(rep in ~(key by q.wild)) max))
+    [idx-new ~ (~(put by q.wild) idx-new vax)]
+  :-  n.p.wild
+  :-  (~(uni in l.p.wild) r.p.wild)
+  (~(put by q.wild) n.p.wild vax)
+::
+++  del-wild
+  |=  [idx=@ wild=(pair (set @) (map @ vase))]
+  ^+  wild
+  :-  (~(put in p.wild) idx)
+  (~(del by q.wild) idx)
+::
 ++  event-to-json
-  |=  =event:h
+  |=  [=event:h wil=wild]
+  |^  ^-  [json wild]
+  =^  data=json  wil
+    ?-  -.event
+      %cron      [~ wil]
+      %on-post   [(on-post +.event) wil]
+      %on-reply  [(on-reply +.event) wil]
+      %wake      (waiting-hook +.event wil)
+    ==
+  :: [o+(molt tag+`json`s+-.event -.event^data ~) wil]
+  :_  wil
   ^-  json
-  stub
+  :-  %o
+  %-  molt
+  ^-  (list (pair @t json))
+  :~
+    [%tag [%s `@t`-.event]]
+    [-.event data]
+  ==
+  ::
+  ++  on-post
+    |=  a=on-post:h
+    ^-  json
+    :-  %o
+    %-  molt
+    ^-  (list (pair @t json))
+    :-  tag+s+-.a
+    ?-    -.a
+        %add
+      ~[post+(v-post post.a)]
+    ::
+        %edit
+      ~[original+(v-post original.a) essay+(essay essay.a)]
+    ::
+        %del
+      ~[original+(v-post original.a)]
+    ::
+        %react
+      :~  post+(v-post post.a)
+          ship+(ship:enjs:format ship.a)
+          react+(react react.a)
+      ==
+    ==
+  ::
+  ++  on-reply
+    |=  a=on-reply:h
+    ^-  json
+    :-  %o
+    %-  molt
+    ^-  (list (pair @t json))
+    :-  tag+s+-.a
+    ?-    -.a
+        %add
+      ~[parent+(v-post parent.a) reply+(v-reply reply.a)]
+    ::
+        %edit
+      :~  parent+(v-post parent.a)
+          original+(v-reply original.a)
+          content+(story content.memo.a)
+          author+(ship:enjs:format author.memo.a)
+          sent+(sect:enjs:format sent.memo.a)
+      ==
+    ::
+        %del
+      ~[parent+(v-post parent.a) original+(v-reply original.a)]
+    ::
+        %react
+      :~  parent+(v-post parent.a)
+          reply+(v-reply reply.a)
+          ship+(ship:enjs:format ship.a)
+          react+(react react.a)
+      ==
+    ::
+    ==
+  ::
+  ++  waiting-hook
+    |=  [a=waiting-hook:h wid=wild]
+    ^-  [json wild]
+    =^  idx=@  wid  (add-wild data.a wid)
+    :_  wid
+    =,  enjs:format
+    %:  pairs
+      [%id (numb id.a)]
+      [%hook (numb hook.a)]
+      [%data (numb idx)]
+      [%fires-at (sect fires-at.a)]
+      ~
+    ==
+  ::
+  ++  v-post
+    |=  =v-post:c
+    ^-  json
+    =,  enjs:format
+    %:  pairs
+      id+(sect id.v-post)
+      replies+(v-replies replies.v-post)
+      reacts+(v-reacts reacts.v-post)
+      rev+(numb rev.v-post)
+      content+(story content.v-post)
+      author+(ship author.v-post)
+      sent+(sect sent.v-post)
+      kind+(kind kind-data.v-post)
+      ~
+    ==
+  ::
+  ++  kind
+    |=  =kind-data:c
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :-  tag+s+-.kind-data
+    ?-  -.kind-data
+      %diary  ~[title+s+title image+s+image]:kind-data
+      %heap   ~[title+?~(title ~ s+u.title)]:kind-data
+      %chat   ~[title+?@(kind ~ s+'notice')]:kind-data
+    ==
+  ::
+  ++  v-replies
+    |=  =v-replies:c
+    ^-  json
+    =,  enjs:format
+    :-  %a
+    %+  turn  (tap:on-v-replies:c v-replies)
+    |=  [key=id-reply:c val=(unit v-reply:c)]
+    ^-  json
+    %-  pairs
+    :~
+      id-reply+(sect key)
+      v-reply+?~(val ~ (v-reply u.val))
+    ==
+  ::
+  ++  v-reacts
+    |=  =v-reacts:c
+    ^-  json
+    =,  enjs:format
+    :-  %a
+    %+  turn  ~(tap by v-reacts)
+    |=  [key=@p val=(rev:c (unit react:c))]
+    ^-  json
+    %-  pairs
+    :~
+      ship+(ship key)
+      rev+(numb rev.val)
+      react+?~(+.val ~ s+u.+.val)
+    ==
+  ::
+  ++  story
+    |=  =story:c
+    ^-  json
+    =,  enjs:format
+    :-  %a
+    %+  turn  story
+    |=  =verse:c
+    ^-  json
+    %-  pairs
+    ^-  (list (pair @t json))
+    :-  tag+s+-.verse
+    ?-  -.verse
+      %block  ~[block+(block p.verse)]
+      %inline  ~[inline+a+(turn p.verse inline)]
+    ==
+  ::
+  ++  block
+    |=  =block:c
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :-  tag+s+-.block
+    ?-    -.block
+        %image
+      :~  src+s+src.block
+          height+(numb height.block)
+          width+(numb width.block)
+          alt+s+alt.block
+      ==
+    ::
+        %cite
+      ~[cite+(cite cite.block)]
+    ::
+        %header
+      ~[p+s+p.block q+a+(turn q.block inline)]
+    ::
+        %listing
+      ~[listing+(listing p.block)]
+    ::
+        %rule
+      ~[rule+~]
+    ::
+        %code
+      ~[code+s+code lang+s+lang]:block
+    ::
+    ==
+  ::
+  ++  cite
+    |=  =cite:^cite
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :-  tag+s+-.cite
+    ?-    -.cite
+        %chan
+      :~  app+s+p.nest.cite
+          ship+(ship p.q.nest.cite)
+          name+s+q.q.nest.cite
+          path+(path wer.cite)
+      ==
+    ::
+        %group
+      ~[ship+(ship p.flag.cite) name+s+q.flag.cite]
+    ::
+        %desk
+      ~[ship+(ship p.flag.cite) name+s+q.flag.cite path+(path wer.cite)]
+    ::
+        %bait
+      :~  ship-grp+(ship p.grp.cite)
+          name-grp+s+q.grp.cite
+          ship-gra+(ship p.gra.cite)
+          name-gra+s+q.gra.cite
+          path+(path wer.cite)
+      ==
+    ::
+    ==
+  ::
+  ++  listing
+    |=  =listing:c
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :-  tag+s+-.listing
+    ?-    -.listing
+        %list
+      :~  order+s+p.listing
+          listings+a+(turn q.listing ^listing)
+          text+a+(turn r.listing inline)
+      ==
+    ::
+        %item
+      ~[text+a+(turn p.listing inline)]
+    ==
+  ::
+  ++  inline
+    |=  =inline:c
+    ^-  json
+    ?@  inline  s+inline
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :-  tag+s+-.inline
+    ?-    -.inline
+        %italics
+      ~[text+a+(turn p.inline ^inline)]
+    ::
+        %bold
+      ~[text+a+(turn p.inline ^inline)]
+    ::
+        %strike
+      ~[text+a+(turn p.inline ^inline)]
+    ::
+        %blockquote
+      ~[text+a+(turn p.inline ^inline)]
+    ::
+        %inline-code
+      ~[text+s+p.inline]
+    ::
+        %code
+      ~[text+s+p.inline]
+    ::
+        %ship
+      ~[text+(ship p.inline)]
+    ::
+        %block
+      ~[num+(numb p.inline) text+s+q.inline]
+    ::
+        %tag
+      ~[text+s+p.inline]
+    ::
+        %link
+      ~[p+s+p.inline q+s+q.inline]
+    ::
+        %task
+      ~[flag+b+p.inline text+a+(turn q.inline ^inline)]
+    ::
+        %break
+      ~[break+~]
+    ::
+    ==
+  ::
+  ++  essay
+    |=  =essay:c
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :~
+      content+(story content.essay)
+      author+(ship author.essay)
+      sent+(sect sent.essay)
+      kind+(kind kind-data.essay)
+    ==
+  ::
+  ++  react
+    |=  a=(unit react:c)
+    ^-  json
+    ?~  a  ~
+    s+u.a
+  ::
+  ++  v-reply
+    |=  =v-reply:c
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    ^-  (list (pair @t json))
+    :~
+      id+(sect id.v-reply)
+      reacts+(v-reacts reacts.v-reply)
+      rev+(numb rev.v-reply)
+      content+(story content.v-reply)
+      author+(ship author.v-reply)
+      sent+(sect sent.v-reply)
+    ==
+  ::
+  --
 ::
 ++  return-of-json
-  |=  jon=json
+  |=  [jon=json =wild]
   ^-  (pair event-result:h (list effect:h))
   stub
 ::
