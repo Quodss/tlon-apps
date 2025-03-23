@@ -1,5 +1,6 @@
-/-  h=hooks, c=channels, cite
+/-  h=hooks, c=channels, cite, co=contacts
 /+  wasm=wasm-lia
+/+  cj=channel-json, gj=groups-json, aj=activity-json, chj=chat-json
 /*  bin  %wasm  /quick-js-emcc/wasm
 ::
 =*  cw            coin-wasm:wasm-sur:wasm
@@ -10,10 +11,8 @@
 =<  builder
 |%
 +$  hook-gate  $-(args:h outcome:h)
-+$  wild  (pair (set @) (map @ vase))
-++  acc-mold  ::  accumulator type for ++run-once
-  |-
-  =*  acc-mold  $
++$  wild  (trel @ (list @) (map @ vase))
++$  acc-mold  ::  accumulator type for ++run-once
   $:  run-u=@                                         ::  runtime 
       ctx-u=@                                         ::  context
       fil-u=@                                         ::  file name
@@ -21,7 +20,7 @@
       (map @ $-([@ @ @ @] (script-form @ acc-mold)))  ::  map @ -> ([ctx-u=@ this-u=@ argc-w=@ argv-u=@] => val-u=@)
   ::
       state=json
-      =wild  :: free idxes; map idx -> vase
+      =wild  :: next idx; free idxes; map idx -> vase
   ==
 ::
 ++  arr  (arrows:wasm acc-mold)
@@ -30,7 +29,8 @@
   ^-  hook-gate
   |=  [=event:h bowl:h]
   ^-  outcome:h
-  =/  state-json  !<(json state.hook)
+  ?~  state-json=(mole |.(!<(json state.hook)))
+    [%| 'non json hook state' ~]
   ::
   ::  %&: head of return and new state
   ::  %|: QuickJS error and our label
@@ -53,7 +53,7 @@
   ;<  ctx-u=@    try:m  (call-1 'QTS_NewContext' run-u 0 ~)
   ;<  fil-u=@    try:m  (malloc-write +(filename-len) filename)
   =|  acc=acc-mold
-  =.  acc  acc(run-u run-u, ctx-u ctx-u, fil-u fil-u, state state-json)
+  =.  acc  acc(run-u run-u, ctx-u ctx-u, fil-u fil-u, state u.state-json)
   =^  event-json=json  wild.acc  (event-to-json event wild.acc)
   ;<  ~          try:m  (set-acc acc)
   ::
@@ -63,6 +63,14 @@
   ?^  err  (return:m |+[u.err 'make _get_state'])
   ;<  err=(unit cord)  try:m  (make-function '_set_state' set-state)
   ?^  err  (return:m |+[u.err 'make _set_state'])
+  ;<  err=(unit cord)  try:m  (make-function '_wish_js' wish-js)
+  ?^  err  (return:m |+[u.err 'make _wish_js'])
+  ;<  err=(unit cord)  try:m  (make-function '_slam_js' slam-js)
+  ?^  err  (return:m |+[u.err 'make _slam_js'])
+  ;<  err=(unit cord)  try:m  (make-function '_to_json' to-json)
+  ?^  err  (return:m |+[u.err 'make _to_json'])
+  ;<  err=(unit cord)  try:m  (make-function '_of_json' of-json)
+  ?^  err  (return:m |+[u.err 'make _of_json'])
   ::
   ;<  *                try:m  (js-eval 'var module = {};')  ::  XX add actual CJS module system api?
   ;<  res-u=@          try:m  (js-eval code)  :: imports the interface library via require, exports a function to module.exports
@@ -85,21 +93,96 @@
 ::
 ::  XX check memory conventions, add free calls
 ::
+++  suze  ^~(!>(..zuse))
+++  wish-js
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  str=cord  try:m  (get-js-string argv-u)
+  =/  gen=hoon  (ream str)
+  =/  vax=vase  (slap suze gen)
+  ;<  acc=acc-mold  try:m  get-acc
+  =^  idx=@  wild.acc  (add-wild vax wild.acc)
+  ;<  ~  try:m  (set-acc acc)
+  (call-1 'QTS_NewFloat64' ctx-u (sun:rd idx) ~)
+::
+++  slam-js
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 2)
+  ;<  idx1-float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u argv-u ~)
+  ;<  idx2-float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u (add 8 argv-u) ~)  ::  sizeof JSValue == 8 in wasm
+  ?~  idx1=(bind (toi:rd idx1-float) abs:si)
+    (call-1 'QTS_NewFloat64' ctx-u .~nan ~)
+  ::
+  ?~  idx2=(bind (toi:rd idx2-float) abs:si)
+    (call-1 'QTS_NewFloat64' ctx-u .~nan ~)
+  ::
+  ;<  acc=acc-mold  try:m  get-acc
+  ?~  gat=(get-wild u.idx1 wild.acc)
+    (call-1 'QTS_NewFloat64' ctx-u .~nan ~)
+  ::
+  ?~  sam=(get-wild u.idx2 wild.acc)
+    (call-1 'QTS_NewFloat64' ctx-u .~nan ~)
+  ::
+  ?~  pro=(mole |.((slam u.gat u.sam)))
+    (call-1 'QTS_NewFloat64' ctx-u .~nan ~)
+  ::
+  =^  idx=@  wild.acc  (add-wild u.pro wild.acc)
+  ;<  ~  try:m  (set-acc acc)
+  (call-1 'QTS_NewFloat64' ctx-u (sun:rd idx) ~)
+::
+++  of-json
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  idx-float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u argv-u ~)
+  ?~  idx=(bind (toi:rd idx-float) abs:si)  (call-1 'QTS_GetNull' ~)
+  ;<  acc=acc-mold  try:m  get-acc
+  ?~  vax=(get-wild u.idx wild.acc)         (call-1 'QTS_GetNull' ~)
+  ?~  jon=(mole |.(!<(json u.vax)))         (call-1 'QTS_GetNull' ~)
+  (store-json u.jon)
+::
+++  to-json
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  jon=json  try:m  (load-json argv-u)
+  =/  vax=vase  !>(jon)
+  ;<  acc=acc-mold  try:m  get-acc
+  =^  idx=@  wild.acc  (add-wild vax wild.acc)
+  ;<  ~             try:m  (set-acc acc)
+  (call-1 'QTS_NewFloat64' ctx-u (sun:rd idx) ~)
+::
+++  get-wild
+  |=  [idx=@ wil=wild]
+  ^-  (unit vase)
+  (~(get by r.wil) idx)
+::
 ++  add-wild
-  |=  [vax=vase wild=(pair (set @) (map @ vase))]
-  ^-  [@ _wild]
-  ?~  p.wild
-    =/  idx-new=@  +((~(rep in ~(key by q.wild)) max))
-    [idx-new ~ (~(put by q.wild) idx-new vax)]
-  :-  n.p.wild
-  :-  (~(uni in l.p.wild) r.p.wild)
-  (~(put by q.wild) n.p.wild vax)
+  |=  [vax=vase wil=wild]
+  ^-  [@ wild]
+  ?~  q.wil
+    =/  nu=@  p.wil
+    [nu [+(nu) ~ (~(put by r.wil) nu vax)]]
+  :-  i.q.wil
+  [p.wil t.q.wil (~(put by r.wil) i.q.wil vax)]
 ::
 ++  del-wild
-  |=  [idx=@ wild=(pair (set @) (map @ vase))]
-  ^+  wild
-  :-  (~(put in p.wild) idx)
-  (~(del by q.wild) idx)
+  |=  [idx=@ wil=wild]
+  ^-  wild
+  =/  q-wil=(list @)
+    ?^  (find ~[idx] q.wil)  q.wil
+    [idx q.wil]
+  [p.wil q-wil (~(del by r.wil) idx)]
 ::
 ++  event-to-json
   |=  [=event:h wil=wild]
@@ -111,16 +194,7 @@
       %on-reply  [(on-reply +.event) wil]
       %wake      (waiting-hook +.event wil)
     ==
-  :: [o+(molt tag+`json`s+-.event -.event^data ~) wil]
-  :_  wil
-  ^-  json
-  :-  %o
-  %-  molt
-  ^-  (list (pair @t json))
-  :~
-    [%tag [%s `@t`-.event]]
-    [-.event data]
-  ==
+  [o+(molt ~[['tag' `json`[%s `@t`-.event]] [-.event data]]) wil]
   ::
   ++  on-post
     |=  a=on-post:h
@@ -429,17 +503,207 @@
   ::
   --
 ::
-++  return-of-json
-  |=  [jon=json =wild]
-  ^-  (pair event-result:h (list effect:h))
+++  event-of-json
+  |=  [jon=json wid=wild]
+  ^-  event:h
   stub
+::
+++  return-of-json
+  |=  [jon=json wid=wild]
+  ^-  (pair event-result:h (list effect:h))
+  ?>  ?=([%o *] jon)
+  =/  eve-res=json  (~(got by p.jon) 'event')
+  =/  effects=json  (~(got by p.jon) 'effects')
+  ?>  ?=([%o *] eve-res)
+  =/  tag-eve-res=json  (~(got by p.eve-res) 'tag')
+  =/  p-out=event-result:h
+    ?+    tag-eve-res  !!
+        [%s %'allowed']
+      allowed+(event-of-json (~(got by p.eve-res) 'allowed') wid)
+    ::
+        [%s %'denied']
+      :-  %denied
+      ?~  msg=(~(got by p.eve-res) 'denied')
+        ~
+      ?.  ?=([%s *] msg)  !!
+      `p.msg
+    ==
+  ::
+  ?>  ?=([%a *] effects)
+  =;  q-out=(list effect:h)
+    [p-out q-out]
+  %+  turn  p.effects
+  |=  jon=json
+  ^-  effect:h
+  ?>  ?=([%o *] jon)
+  =/  tag-effect=json  (~(got by p.jon) 'tag')
+  ?+    tag-effect  !!
+      [%s %'channels']
+    =/  a-channels-jon  (~(got by p.jon) 'channels')
+    channels+(a-channels:dejs:cj a-channels-jon)
+  ::
+      [%s %'groups']
+    =/  action-jon  (~(got by p.jon) 'groups')
+    groups+(action:dejs:gj action-jon)
+  ::
+      [%s %'activity']
+    =/  action-jon  (~(got by p.jon) 'activity')
+    activity+(action:dejs:aj action-jon)
+  ::
+      [%s %'dm']
+    =/  action-jon  (~(got by p.jon) 'dm')
+    dm+(dm-action:dejs:chj action-jon)
+  ::
+      [%s %'club']
+    =/  action-jon  (~(got by p.jon) 'club')
+    club+(club-action:dejs:chj action-jon)
+  ::
+      [%s %'contacts']
+    =/  action-jon  (~(got by p.jon) 'contacts')
+    contacts+(contacts-action-of-js action-jon)
+  ::
+      [%s %'wait']
+    =/  wait  (~(got by p.jon) 'wait')
+    wait+(waiting-hook-of-js wait wid)
+  ::
+  ==
+::
+++  contacts-action-of-js
+  ^-  $-(json action:co)
+  =,  dejs:format
+  %-  of
+  :~
+    anon+ul
+    self+contact-of-js
+    page+(ot kip+kip-of-js contact+contact-of-js ~)
+    edit+(ot kip+kip-of-js contact+contact-of-js ~)
+    wipe+(ar kip-of-js)
+    meet+(ar ni)
+    drop+(ar ni)
+    snub+(ar ni)
+  ==
+::
+++  contact-of-js
+  ^-  $-(json contact:co)
+  =,  dejs:format
+  (op sym value-of-js)
+::
+++  value-of-js
+  |=  jon=json
+  ^-  value:co
+  ?~  jon  ~
+  %.  jon
+  =,  dejs:format
+  %-  of
+  :~
+    text+so
+    numb+ni
+    date+di
+    tint+ni
+    ship+ni
+    look+so
+    flag+flag:dejs:gj
+    set+(as value-of-js)
+  ==
+++  kip-of-js
+  |=  jon=json
+  ^-  kip:co
+  ?~  jon  !!
+  =,  dejs:format
+  ?:  ?=(%n -.jon)  (ni jon)
+  ((of id+ni ~) jon)
+::
+++  waiting-hook-of-js
+  |=  [jon=json wid=wild]
+  ^-  waiting-hook:h
+  =,  dejs:format
+  =/  hok=(qual @ @ @ time)
+    ((ot id+ni hook+ni data+ni fires-at+di ~) jon)
+  ::
+  =/  data=vase  (need (get-wild r.hok wid))
+  [p.hok q.hok data s.hok]
+::
+++  js-val-cord-compare
+  |=  [val-u=@ =cord]
+  =/  m  (script:lia-sur:wasm ? acc-mold)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  =,  acc
+  ::
+  ;<  crd-u=@  try:m  (malloc-write +((met 3 cord)) cord)
+  ;<  str-u=@  try:m  (call-1 'QTS_NewString' ctx-u crd-u ~)
+  ;<  is-eq=@  try:m  (call-1 'QTS_IsEqual' ctx-u val-u str-u 0 ~)  :: QTS_EqualOp_SameValue
+  ;<  *        try:m  (call 'QTS_FreeValuePointer' ctx-u str-u ~)
+  ;<  *        try:m  (call 'free' crd-u ~)
+  (return:m !=(is-eq 0))
+::
+++  make-error
+  |=  txt=cord
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  =,  acc
+  ::
+  ;<  err-u=@  try:m  (call-1 'QTS_NewError' ctx-u ~)
+  =/  field=cord  'message'
+  ;<  *        try:m
+    %:  ring  'QTS_SetProp'
+      ctx-u
+      err-u
+      (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 field)) field) ~)
+      (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 txt)) txt) ~)
+      ~
+    ==
+  ::
+  (return:m err-u)
 ::
 ++  require
   |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
   =/  m  (script:lia-sur:wasm @ acc-mold)
   ^-  form:m
   =,  arr
-  stub  :: XX add library code
+  ?>  (gte argc-w 1)
+  ;<  is-tlon-hooks=?  try:m  (js-val-cord-compare argv-u 'tlon-hooks')
+  ?:  is-tlon-hooks  (js-eval tlon-hooks-code)  ::  TODO proper addition in agreement with `require` spec?
+  ::  ;<  is-foo=?  try:m  (js-val-cord-compare argv-u 'foo')
+  ::  ?:  is-foo  (js-eval foo-code)
+  ::  ...
+  ::
+  (ding 'QTS_Throw' ctx-u (make-error 'Name not recognized by `require`') ~)
+::
+++  tlon-hooks-code
+  ^-  cord
+  '''
+  var _o = {
+    get_state() {
+      return _get_state();  // returns object from state.hook
+    },
+  //
+    set_state(obj) {
+      return _set_state(obj);  // returns (), sets state.hook
+    },
+  //
+    wish_js(txt) {
+      return _wish_js(txt);  // returns float: wild idx with the prodcuct of hoon expression
+    },
+  //
+    slam_js(idx1, idx2) {
+      return _slam_js(idx1, idx2);  // returns float: wild idx with the product of gate slam
+    },
+  //
+    to_json(obj) {
+      return _to_json(obj);  // returns float: wild idx with the object as a noun
+    },
+  //
+    of_json(idx) {
+      return _of_json(idx); // returns object: deserialization of of a noun at idx in wild
+    },
+  //
+  }
+  _o
+  '''
 ::
 ++  get-state
   |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
