@@ -336,13 +336,13 @@
 ::
 ++  dejs
   |%
-  ++  ship  :: ensure roundtripping
+  ++  ship-round  :: ensure roundtripping
     |=  jon=json
     ^-  @p
     ?~  jon  !!
     ?+  -.jon  !!
-      %n  (rash p.jon (ifix [. .]:doq ;~(pfix sig fed:ag)))
-      %s  (rash p.jon ;~(pfix sig fed:ag))
+      %n  ~|  `@t`p.jon  (rash p.jon (ifix [doq doq] ;~(pfix (punt sig) fed:ag)))
+      %s  (rash p.jon ;~(pfix (punt sig) fed:ag))
     ==
   ::
   ++  event-h
@@ -364,7 +364,7 @@
     :~
       seal+v-seal-c
       revision+(su dem:ag)
-      essay+essay:dejs:cj
+      essay+essay-c
     ==
   ++  v-seal-c
     ^-  $-(json v-seal:c)
@@ -403,7 +403,7 @@
       reacts+v-reacts-c
       revision+(su dem:ag)
       content+story:dejs:cj
-      author+ship
+      author+ship-round
       sent+di
     ==
   ::
@@ -413,22 +413,30 @@
     %-  of
     :~
       add+v-post-c
-      edit+(ot original+v-post-c essay+essay:dejs:cj ~)
+      edit+(ot original+v-post-c essay+essay-c ~)
       del+v-post-c
-      react+(ot post+v-post-c ship+ship react+(mu so) ~)
+      react+(ot post+v-post-c ship+ship-round react+(mu so) ~)
     ==
   ::
+  ++  memo-c
+    ^-  $-(json memo:c)
+    =,  dejs:format
+    %-  ot
+    :~  content/story:dejs:cj
+        author/ship-round
+        sent/di
+    ==
   ++  on-reply-h
     ^-  $-(json on-reply:h)
     =,  dejs:format
     %-  of
     :~
       add+(ot parent+v-post-c reply+v-reply-c ~)
-      edit+(ot ~[parent+v-post-c original+v-reply-c memo+memo:dejs:cj])
+      edit+(ot ~[parent+v-post-c original+v-reply-c memo+memo-c])
       del+(ot parent+v-post-c original+v-reply-c ~)
     ::
       :-  %react
-      (ot parent+v-post-c reply+v-reply-c ship+ship react+(mu so) ~)
+      (ot parent+v-post-c reply+v-reply-c ship+ship-round react+(mu so) ~)
     ==
   ++  waiting-hook-h
     |=  wid=wild
@@ -455,9 +463,9 @@
       page+(ot kip+kip-co contact+contact-co ~)
       edit+(ot kip+kip-co contact+contact-co ~)
       wipe+(ar kip-co)
-      meet+(ar ship)
-      drop+(ar ship)
-      snub+(ar ship)
+      meet+(ar ship-round)
+      drop+(ar ship-round)
+      snub+(ar ship-round)
     ==
   ::
   ++  contact-co
@@ -477,7 +485,7 @@
       numb+ni
       date+di
       tint+ni
-      ship+ship
+      ship+ship-round
       look+so
       flag+flag:dejs:gj
       set+(as value-co)
@@ -490,10 +498,22 @@
             a
     %-  of
     :~
-      ship+ship
+      ship+ship-round
       id+ni
     ==
   ::
+  ++  essay-c
+    ^-  $-(json essay:c)
+    =,  dejs:format
+    %+  cu
+      |=  [=story:c ship=@p time=@da =kind-data:c]
+      `essay:c`[[story ship time] kind-data]
+    %-  ot
+    :~  content/story:dejs:cj
+        author/ship-round
+        sent/di
+        kind-data/kind-data:dejs:cj
+    ==
   --
 ::
 ++  return-of-json
