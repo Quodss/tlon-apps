@@ -1,4 +1,4 @@
-/-  h=hooks, c=channels, cite, co=contacts
+/-  h=hooks, c=channels, cite, co=contacts, g=groups, ch=chat
 /+  wasm=wasm-lia
 /+  cj=channel-json, gj=groups-json, aj=activity-json, chj=chat-json
 /*  bin  %wasm  /quick-js-emcc/wasm
@@ -11,7 +11,7 @@
 =<  builder
 |%
 +$  hook-gate  $-(args:h outcome:h)
-+$  wild  (trel @ (list @) (map @ vase))
++$  wild  (qual @ (list @) (map @ vase) (map vase @))
 +$  acc-mold  ::  accumulator type for ++run-once
   $:  run-u=@                                         ::  runtime 
       ctx-u=@                                         ::  context
@@ -20,16 +20,17 @@
       (map @ $-([@ @ @ @] (script-form @ acc-mold)))  ::  map @ -> ([ctx-u=@ this-u=@ argc-w=@ argv-u=@] => val-u=@)
   ::
       state=json
-      =wild  :: next idx; free idxes; map idx -> vase
+      =wild  :: next idx; free idxes; maps idx <-> unique vase
   ==
 ::
 ++  arr  (arrows:wasm acc-mold)
 ++  builder
   |=  code=cord
   ^-  hook-gate
-  |=  [=event:h bowl:h]
+  |=  [=event:h =bowl:h]
   ^-  outcome:h
-  ?~  state-json=(mole |.(!<(json state.hook)))
+  ~>  %bout
+  ?~  state-json=(mole |.(!<(json state.hook.bowl)))
     [%| 'non json hook state' ~]
   ::
   ::  %&: head of return and new state
@@ -54,12 +55,14 @@
   ;<  fil-u=@    try:m  (malloc-write +(filename-len) filename)
   =|  acc=acc-mold
   =.  acc  acc(run-u run-u, ctx-u ctx-u, fil-u fil-u, state u.state-json)
+  =^  idx-bowl  wild.acc  (add-wild !>(bowl) wild.acc)
+  ?>  =(0 idx-bowl)
   =^  event-json=json  wild.acc  (event-to-json event wild.acc)
   ;<  ~          try:m  (set-acc acc)
   ::
   ;<  err=(unit cord)  try:m  (make-function 'require' require)
   ?^  err  (return:m |+[u.err 'make require'])
-  ;<  err=(unit cord)  try:m  (make-function '_get_state' get-state)
+  ;<  err=(unit cord)  try:m  (make-function '_get_state' get-state)  ::  XX TODO add properties normally through QTS_SetProperty or smth
   ?^  err  (return:m |+[u.err 'make _get_state'])
   ;<  err=(unit cord)  try:m  (make-function '_set_state' set-state)
   ?^  err  (return:m |+[u.err 'make _set_state'])
@@ -71,6 +74,42 @@
   ?^  err  (return:m |+[u.err 'make _to_json'])
   ;<  err=(unit cord)  try:m  (make-function '_of_json' of-json)
   ?^  err  (return:m |+[u.err 'make _of_json'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_get_chat_messages_here' get-chat-messages-here)
+  ::
+  ?^  err  (return:m |+[u.err 'make _get_chat_messages_here'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_get_members_here' get-members-here)
+  ::
+  ?^  err  (return:m |+[u.err 'make _get_members_here'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_get_roles' get-roles)
+  ::
+  ?^  err  (return:m |+[u.err 'make _get_roles'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_add_user' add-user)
+  ::
+  ?^  err  (return:m |+[u.err 'make _add_user'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_kick_user' kick-user)
+  ::
+  ?^  err  (return:m |+[u.err 'make _kick_user'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_give_role' give-role)
+  ::
+  ?^  err  (return:m |+[u.err 'make _give_role'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_remove_role' remove-role)
+  ::
+  ?^  err  (return:m |+[u.err 'make _remove_role'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_post_here' post-here)
+  ::
+  ?^  err  (return:m |+[u.err 'make _post_here'])
+  ;<  err=(unit cord)  try:m
+    (make-function '_send_dm' send-dm)
+  ::
+  ?^  err  (return:m |+[u.err 'make _send_dm'])
   ::
   ;<  *                try:m  (js-eval 'var module = {};')  ::  XX add actual CJS module system api?
   ;<  res-u=@          try:m  (js-eval code)  :: imports the interface library via require, exports a function to module.exports
@@ -162,6 +201,165 @@
   ;<  ~             try:m  (set-acc acc)
   (call-1 'QTS_NewFloat64' ctx-u (sun:rd idx) ~)
 ::
+++  get-chat-messages-here
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  channel.bowl  (call-1 'QTS_NewArray' ctx-u ~)
+  =/  posts=v-posts:c  posts.u.channel.bowl
+  =/  posts-list=(list v-post:c)
+    (murn (tap:on-v-posts:c posts) tail)
+  ::
+  (store-json a+(turn posts-list v-post-c:enjs))
+::
+++  get-members-here
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  group.bowl  (call-1 'QTS_NewArray' ctx-u ~)
+  =/  =fleet:g  fleet.u.group.bowl
+  =/  ships=(list @p)  ~(tap in ~(key by fleet))
+  (store-json a+(turn ships ship:enjs:format))
+::
+++  get-roles
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  group.bowl  (call-1 'QTS_NewArray' ctx-u ~)
+  ;<  jon=json  try:m  (load-json argv-u)
+  =/  ship=(unit @p)  (mole |.((ship-round:dejs jon)))
+  ?~  ship  (call-1 'QTS_NewArray' ctx-u.acc ~)
+  =/  =fleet:g  fleet.u.group.bowl
+  =/  sev=(unit vessel:fleet:g)  (~(get by fleet) u.ship)
+  ?~  sev  (call-1 'QTS_NewArray' ctx-u ~)
+  (store-json a+(turn ~(tap in sects.u.sev) (lead %s)))
+::
+++  add-user
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  group.bowl  (call-1 'QTS_GetNull' ~)
+  ;<  jon=json  try:m  (load-json argv-u)
+  ?~  ship=(mole |.((ship-round:dejs jon)))
+    (call-1 'QTS_GetNull' ~)
+  =/  =diff:g  [%fleet [u.ship ~ ~] add+~]
+  =/  =update:g  [now.bowl diff]
+  ?~  channel.bowl  (call-1 'QTS_GetNull' ~)
+  =/  =flag:g  group.perm.perm.u.channel.bowl
+  =/  =action:g  [flag update]
+  (store-json (frond:enjs:format groups+(action:enjs:gj action)))
+::
+++  kick-user
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  group.bowl  (call-1 'QTS_GetNull' ~)
+  ;<  jon=json  try:m  (load-json argv-u)
+  ?~  ship=(mole |.((ship-round:dejs jon)))
+    (call-1 'QTS_GetNull' ~)
+  =/  =diff:g  [%fleet [u.ship ~ ~] del+~]
+  =/  =update:g  [now.bowl diff]
+  ?~  channel.bowl  (call-1 'QTS_GetNull' ~)
+  =/  =flag:g  group.perm.perm.u.channel.bowl
+  =/  =action:g  [flag update]
+  (store-json (frond:enjs:format groups+(action:enjs:gj action)))
+::
+++  give-role
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 2)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  group.bowl  (call-1 'QTS_GetNull' ~)
+  ;<  jon=json  try:m  (load-json argv-u)
+  ?~  ship=(mole |.((ship-round:dejs jon)))
+    (call-1 'QTS_GetNull' ~)
+  ;<  str=cord  try:m  (get-js-string (add argv-u 8))
+  ?.  ((sane %tas) str)  (call-1 'QTS_GetNull' ~)
+  =/  =diff:g  [%fleet [u.ship ~ ~] add-sects+[`@tas`str ~ ~]]
+  =/  =update:g  [now.bowl diff]
+  ?~  channel.bowl  (call-1 'QTS_GetNull' ~)
+  =/  =flag:g  group.perm.perm.u.channel.bowl
+  =/  =action:g  [flag update]
+  (store-json (frond:enjs:format groups+(action:enjs:gj action)))
+::
+++  remove-role
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 2)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ?~  group.bowl  (call-1 'QTS_GetNull' ~)
+  ;<  jon=json  try:m  (load-json argv-u)
+  ?~  ship=(mole |.((ship-round:dejs jon)))
+    (call-1 'QTS_GetNull' ~)
+  ;<  str=cord  try:m  (get-js-string (add argv-u 8))
+  ?.  ((sane %tas) str)  (call-1 'QTS_GetNull' ~)
+  =/  =diff:g  [%fleet [u.ship ~ ~] del-sects+[`@tas`str ~ ~]]
+  =/  =update:g  [now.bowl diff]
+  ?~  channel.bowl  (call-1 'QTS_GetNull' ~)
+  =/  =flag:g  group.perm.perm.u.channel.bowl
+  =/  =action:g  [flag update]
+  (store-json (frond:enjs:format groups+(action:enjs:gj action)))
+::
+++  post-here
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 1)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ;<  str=cord  try:m  (get-js-string argv-u)
+  =/  =story:c  ~[inline+~[str]]
+  =/  =memo:c  [story [our now]:bowl]
+  =/  =essay:c  [memo chat+~]
+  =/  =c-post:c  add+essay
+  =/  =c-channel:c  post+c-post
+  =/  =a-channel:c  c-channel
+  ?~  channel.bowl  (call-1 'QTS_GetNull' ~)
+  =/  =a-channels:c  [%channel nest.u.channel.bowl a-channel]
+  (store-json (frond:enjs:format channels+(a-channels-c:enjs a-channels)))
+::
+++  send-dm
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?>  (gte argc-w 2)
+  ;<  acc=acc-mold  try:m  get-acc
+  =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
+  ;<  jon=json  try:m  (load-json argv-u)
+  ?~  ship=(mole |.((ship-round:dejs jon)))
+    (call-1 'QTS_GetNull' ~)
+  ;<  str=cord  try:m  (get-js-string (add argv-u 8))
+  =/  =story:c  ~[inline+~[str]]
+  =/  =memo:c  [story [our now]:bowl]
+  =/  =action:dm:ch  [u.ship u.ship^now.bowl %add memo ~ `now.bowl]
+  (store-json (frond:enjs:format dm+(dm-action:enjs:chj action)))
+::
 ++  get-wild
   |=  [idx=@ wil=wild]
   ^-  (unit vase)
@@ -170,19 +368,24 @@
 ++  add-wild
   |=  [vax=vase wil=wild]
   ^-  [@ wild]
+  ?^  idx=(~(get by s.wil) vax)
+    [u.idx wil]
   ?~  q.wil
     =/  nu=@  p.wil
-    [nu [+(nu) ~ (~(put by r.wil) nu vax)]]
+    [nu [+(nu) ~ (~(put by r.wil) nu vax) (~(put by s.wil) vax nu)]]
   :-  i.q.wil
-  [p.wil t.q.wil (~(put by r.wil) i.q.wil vax)]
+  [p.wil t.q.wil (~(put by r.wil) i.q.wil vax) (~(put by s.wil) vax i.q.wil)]
 ::
 ++  del-wild
   |=  [idx=@ wil=wild]
   ^-  wild
+  ?:  =(0 idx)  wil  ::  idx 0 is reserved for the bowl, keep it
   =/  q-wil=(list @)
     ?^  (find ~[idx] q.wil)  q.wil
     [idx q.wil]
-  [p.wil q-wil (~(del by r.wil) idx)]
+  =/  vax=(unit vase)  (~(get by r.wil) idx)
+  =?  s.wil  ?=(^ vax)  (~(del by s.wil) u.vax)
+  [p.wil q-wil (~(del by r.wil) idx) s.wil]
 ::
 ++  event-to-json
   |=  [=event:h wil=wild]
@@ -332,6 +535,133 @@
       data+(numb idx)
       fires-at+(time fires-at.waiting-hook)
     ==
+  ::
+  ++  a-channels-c
+    |=  a=a-channels:c
+    ^-  json
+    =,  enjs:format
+    %+  frond  -.a
+    ?-    -.a
+        %create
+      (create-channel-c create-channel.a)
+    ::
+        %pin
+      a+(turn pins.a nest:enjs:cj)
+    ::
+        %channel
+      (pairs nest+(nest:enjs:cj nest.a) a-channel+(a-channel-c a-channel.a) ~)
+    ::
+      %toggle-post  (post-toggle:enjs:cj toggle.a)
+    ==
+  ::
+  ++  create-channel-c
+    |=  a=create-channel:c
+    ^-  json
+    =,  enjs:format
+    %-  pairs
+    :~
+      kind+s+kind.a
+      name+s+name.a
+      group+(flag:enjs:cj group.a)
+      title+s+title.a
+      description+s+description.a
+      readers+a+(turn ~(tap in readers.a) (lead %s))
+      writers+a+(turn ~(tap in writers.a) (lead %s))
+    ==
+  ::
+  ++  a-channel-c
+    |=  a=a-channel:c
+    ^-  json
+    =,  enjs:format
+    %+  frond  -.a
+    ?-    -.a
+        %join
+      (flag:enjs:cj group.a)
+    ::
+        %leave
+      ~
+    ::
+        %read
+      ~
+    ::
+        %read-at
+      s+(scot %ud time.a)
+    ::
+        %watch
+      ~
+    ::
+        %unwatch
+      ~
+    ::
+        %post
+      (c-post-c c-post.a)
+    ::
+        %view
+      s+view.a
+    ::
+        %sort
+      s+sort.a
+    ::
+        %order
+      ?~  order.a  ~
+      a+(turn u.order.a (cork (cury scot %ud) (lead %s)))
+    ::
+        %add-writers
+      a+(turn ~(tap in sects.a) (lead %s))
+    ::
+        %del-writers
+      a+(turn ~(tap in sects.a) (lead %s))
+    ::
+    ==
+  ::
+  ++  c-post-c
+    |=  a=c-post:c
+    ^-  json
+    =,  enjs:format
+    %+  frond  -.a
+    ?-    -.a
+        %add
+      (essay:enjs:cj essay.a)
+    ::
+        %edit
+      (pairs id+s+(scot %ud id.a) essay+(essay:enjs:cj essay.a) ~)
+    ::
+        %del
+      s+(scot %ud id.a)
+    ::
+        %reply
+      (pairs id+s+(scot %ud id.a) essay+(c-reply-c c-reply.a) ~)
+    ::
+        %add-react
+      (pairs id+s+(scot %ud id.a) ship+(ship p.a) react+s+q.a ~)
+    ::
+        %del-react
+      (pairs id+s+(scot %ud id.a) ship+(ship p.a) ~)
+    ::
+    ==
+  ::
+  ++  c-reply-c
+    |=  a=c-reply:c
+    ^-  json
+    =,  enjs:format
+    %+  frond  -.a
+    ?-    -.a
+        %add
+      (memo:enjs:cj memo.a)
+    ::
+        %del
+      s+(scot %ud id.a)
+    ::
+        %edit
+      (pairs id+s+(scot %ud id.a) memo+(memo:enjs:cj memo.a) ~)
+    ::
+        %add-react
+      (pairs id+s+(scot %ud id.a) ship+(ship p.a) react+s+q.a ~)
+    ::
+        %del-react
+      (pairs id+s+(scot %ud id.a) ship+(ship p.a) ~)
+    ::
+    ==
   --
 ::
 ++  dejs
@@ -341,7 +671,7 @@
     ^-  @p
     ?~  jon  !!
     ?+  -.jon  !!
-      %n  ~|  `@t`p.jon  (rash p.jon (ifix [doq doq] ;~(pfix (punt sig) fed:ag)))
+      %n  (rash p.jon (ifix [doq doq] ;~(pfix (punt sig) fed:ag)))
       %s  (rash p.jon ;~(pfix (punt sig) fed:ag))
     ==
   ::
@@ -589,36 +919,80 @@
   ::  ?:  is-foo  (js-eval foo-code)
   ::  ...
   ::
-  (ding 'QTS_Throw' ctx-u (make-error 'Name not recognized by `require`') ~)
+  ;<  str=cord  try:m  (get-js-string argv-u)
+  %:  ding
+    'QTS_Throw'
+    ctx-u
+    (make-error (crip "Name {(trip str)} not recognized by `require`"))
+    ~
+  ==
 ::
 ++  tlon-hooks-code
   ^-  cord
   '''
   var _o = {
     get_state() {
-      return _get_state();  // returns object from state.hook
+      return _get_state();                // returns object from state.hook
     },
-  //
+
     set_state(obj) {
-      return _set_state(obj);  // returns (), sets state.hook
+      return _set_state(obj);             // returns (), sets state.hook
     },
-  //
-    wish_js(txt) {
-      return _wish_js(txt);  // returns float: wild idx with the prodcuct of hoon expression
+
+    wish(txt) {
+      return _wish_js(txt) >>> 0;         // returns int: wild idx with the prodcuct of hoon expression
     },
-  //
-    slam_js(idx1, idx2) {
-      return _slam_js(idx1, idx2);  // returns float: wild idx with the product of gate slam
+
+    slam(idx1, idx2) {
+      return _slam_js(idx1, idx2) >>> 0;  // returns int: wild idx with the product of gate slam
     },
-  //
-    to_json(obj) {
-      return _to_json(obj);  // returns float: wild idx with the object as a noun
+
+    object_to_noun(obj) {
+      return _to_json(obj) >>> 0;         // returns int: wild idx with the object as a noun
     },
-  //
-    of_json(idx) {
-      return _of_json(idx); // returns object: deserialization of of a noun at idx in wild
+
+    noun_to_object(idx) {
+      return _of_json(idx);               // returns object: deserialization of of a noun at idx in wild
     },
-  //
+
+    get_chat_messages_here() {
+      return _get_chat_messages_here();   //  returns a list of chat messages from the current channel
+    },
+
+    get_members_here() {
+      return _get_members_here();         //  returns a list of ships for the current channel
+    },
+
+    get_roles(ship) {
+      return _get_roles(ship);            //  returns a list of role names for a given ship in the current channel
+    },
+
+    events {                              // event builders
+
+      add_user(ship) {
+        return _add_user(ship);               //  add ship to the current channel
+      },
+
+      kick_user(ship) {
+        return _kick_user(ship);              //  remove ship from the current channel
+      },
+
+      give_role(ship, role) {
+        return _give_role(ship, role);        // give a role to a given ship
+      },
+
+      remove_role(ship, role) {
+        return _remove_role(ship, role);      // remove a role from a given ship
+      },
+
+      post_here(text) {
+        return _post_here(text);              // post a message in the channel
+      },
+
+      send_dm(ship, text) {
+        return _send_dm(ship, text);          // send a direct message to a ship
+      },
+    },
   }
   _o
   '''
@@ -637,7 +1011,7 @@
   ^-  form:m
   =,  arr
   ;<  acc=acc-mold  try:m  get-acc
-  ?>  =(1 argc-w)
+  ?>  (gte argc-w 1)
   ;<  jon=json  try:m  (load-json argv-u)
   ;<  ~         try:m  (set-acc acc(state jon))
   (call-1 'QTS_NewFloat64' ctx-u 0 ~)

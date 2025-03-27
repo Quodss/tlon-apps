@@ -2,9 +2,10 @@
 ::
 %-  b
 '''
-module.exports = {};
+var p = require("tlon-hooks");
+
 module.exports = (event) => {
-    if (event["on-post"] == undefined | event["on-post"].add == undefined)
+    if (event["on-post"].add == undefined)
     {
         return {event: {allowed: event}, effects: []};
     }

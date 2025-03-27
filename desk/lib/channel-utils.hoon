@@ -698,7 +698,8 @@
       (slog (crip "on channel: {<nest.u.channel.bowl.args>}") ~)
   ?~  compiled.hook  ~
   =/  gate  [p.u.compiled.hook .*(q:subject q.u.compiled.hook)]
-  =+  !<(=outcome:h (slam gate !>(args)))
+  =/  vax=vase  (slam gate !>(args))
+  =+  !<(=outcome:h vax)
   %-  (slog (crip "{(trip name.hook)} {<id.hook>} hook run:") ~)
   %-  (slog >outcome< ~)
   ?:  ?=(%.y -.outcome)  `p.outcome
