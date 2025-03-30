@@ -60,58 +60,30 @@
   =^  event-json=json  wild.acc  (event-to-json event wild.acc)
   ;<  ~          try:m  (set-acc acc)
   ::
-  ;<  err=(unit cord)  try:m  (make-function 'require' require)
+  ;<  global-this-u=@  try:m  (call-1 'QTS_GetGlobalObject' ctx-u ~)
+  ;<  undef-u=@        try:m  (call-1 'QTS_GetUndefined' ~)
+  ;<  err=(unit cord)  try:m  (make-function 'require' require global-this-u)
   ?^  err  (return:m |+[u.err 'make require'])
-  ;<  err=(unit cord)  try:m  (make-function '_get_state' get-state)  ::  XX TODO add properties normally through QTS_SetProperty or smth
-  ?^  err  (return:m |+[u.err 'make _get_state'])
-  ;<  err=(unit cord)  try:m  (make-function '_set_state' set-state)
-  ?^  err  (return:m |+[u.err 'make _set_state'])
-  ;<  err=(unit cord)  try:m  (make-function '_wish_js' wish-js)
-  ?^  err  (return:m |+[u.err 'make _wish_js'])
-  ;<  err=(unit cord)  try:m  (make-function '_slam_js' slam-js)
-  ?^  err  (return:m |+[u.err 'make _slam_js'])
-  ;<  err=(unit cord)  try:m  (make-function '_to_json' to-json)
-  ?^  err  (return:m |+[u.err 'make _to_json'])
-  ;<  err=(unit cord)  try:m  (make-function '_of_json' of-json)
-  ?^  err  (return:m |+[u.err 'make _of_json'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_get_chat_messages_here' get-chat-messages-here)
   ::
-  ?^  err  (return:m |+[u.err 'make _get_chat_messages_here'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_get_members_here' get-members-here)
-  ::
-  ?^  err  (return:m |+[u.err 'make _get_members_here'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_get_roles' get-roles)
-  ::
-  ?^  err  (return:m |+[u.err 'make _get_roles'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_add_user' add-user)
-  ::
-  ?^  err  (return:m |+[u.err 'make _add_user'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_kick_user' kick-user)
-  ::
-  ?^  err  (return:m |+[u.err 'make _kick_user'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_give_role' give-role)
-  ::
-  ?^  err  (return:m |+[u.err 'make _give_role'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_remove_role' remove-role)
-  ::
-  ?^  err  (return:m |+[u.err 'make _remove_role'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_post_here' post-here)
-  ::
-  ?^  err  (return:m |+[u.err 'make _post_here'])
-  ;<  err=(unit cord)  try:m
-    (make-function '_send_dm' send-dm)
-  ::
-  ?^  err  (return:m |+[u.err 'make _send_dm'])
-  ::
-  ;<  *                try:m  (js-eval 'var module = {};')  ::  XX add actual CJS module system api?
+  ;<  *  try:m
+    %:  ring  'QTS_DefineProp'
+      ctx-u
+      global-this-u
+    ::  prop name
+      %:  ding  'QTS_NewString'                       ::  property name
+        ctx-u
+        (malloc-write +((met 3 'module')) 'module')   ::  char*
+        ~
+      ==
+    ::
+      (call-1 'QTS_NewObject' ctx-u ~)                ::  init value
+      undef-u                                         ::  getter
+      undef-u                                         ::  setter
+      1                                               ::  configurable
+      1                                               ::  enumerable
+      1                                               ::  has value
+      ~
+    ==
   ;<  res-u=@          try:m  (js-eval code)  :: imports the interface library via require, exports a function to module.exports
   ;<  err=(unit cord)  try:m  (mayb-error res-u)
   ?^  err  (return:m |+[u.err 'failed to export the hook function'])
@@ -549,7 +521,7 @@
       a+(turn pins.a nest:enjs:cj)
     ::
         %channel
-      (pairs nest+(nest:enjs:cj nest.a) a-channel+(a-channel-c a-channel.a) ~)
+      (pairs nest+(nest:enjs:cj nest.a) action+(a-channel-c a-channel.a) ~)
     ::
       %toggle-post  (post-toggle:enjs:cj toggle.a)
     ==
@@ -578,21 +550,12 @@
         %join
       (flag:enjs:cj group.a)
     ::
-        %leave
-      ~
-    ::
-        %read
+        ?(%leave %read %watch %unwatch)
       ~
     ::
         %read-at
       s+(scot %ud time.a)
-    ::
-        %watch
-      ~
-    ::
-        %unwatch
-      ~
-    ::
+    ::  
         %post
       (c-post-c c-post.a)
     ::
@@ -630,7 +593,7 @@
       s+(scot %ud id.a)
     ::
         %reply
-      (pairs id+s+(scot %ud id.a) essay+(c-reply-c c-reply.a) ~)
+      (pairs id+s+(scot %ud id.a) action+(c-reply-c c-reply.a) ~)
     ::
         %add-react
       (pairs id+s+(scot %ud id.a) ship+(ship p.a) react+s+q.a ~)
@@ -913,89 +876,69 @@
   ^-  form:m
   =,  arr
   ?>  (gte argc-w 1)
-  ;<  is-tlon-hooks=?  try:m  (js-val-cord-compare argv-u 'tlon-hooks')
-  ?:  is-tlon-hooks  (js-eval tlon-hooks-code)  ::  TODO proper addition in agreement with `require` spec?
+  ;<  is-tlon-hooks=?  try:m  (js-val-cord-compare argv-u 'tlon_hooks')
+  ?:  is-tlon-hooks  tlon-hooks-make-object
   ::  ;<  is-foo=?  try:m  (js-val-cord-compare argv-u 'foo')
-  ::  ?:  is-foo  (js-eval foo-code)
+  ::  ?:  is-foo  foo-make-object
   ::  ...
   ::
   ;<  str=cord  try:m  (get-js-string argv-u)
   %:  ding
     'QTS_Throw'
     ctx-u
-    (make-error (crip "Name {(trip str)} not recognized by `require`"))
+    (make-error (rap 3 'Name "' str '" not recognized by "require"' ~))
     ~
   ==
 ::
-++  tlon-hooks-code
-  ^-  cord
-  '''
-  var _o = {
-    get_state() {
-      return _get_state();                // returns object from state.hook
-    },
-
-    set_state(obj) {
-      return _set_state(obj);             // returns (), sets state.hook
-    },
-
-    wish(txt) {
-      return _wish_js(txt) >>> 0;         // returns int: wild idx with the prodcuct of hoon expression
-    },
-
-    slam(idx1, idx2) {
-      return _slam_js(idx1, idx2) >>> 0;  // returns int: wild idx with the product of gate slam
-    },
-
-    object_to_noun(obj) {
-      return _to_json(obj) >>> 0;         // returns int: wild idx with the object as a noun
-    },
-
-    noun_to_object(idx) {
-      return _of_json(idx);               // returns object: deserialization of of a noun at idx in wild
-    },
-
-    get_chat_messages_here() {
-      return _get_chat_messages_here();   //  returns a list of chat messages from the current channel
-    },
-
-    get_members_here() {
-      return _get_members_here();         //  returns a list of ships for the current channel
-    },
-
-    get_roles(ship) {
-      return _get_roles(ship);            //  returns a list of role names for a given ship in the current channel
-    },
-
-    events {                              // event builders
-
-      add_user(ship) {
-        return _add_user(ship);               //  add ship to the current channel
-      },
-
-      kick_user(ship) {
-        return _kick_user(ship);              //  remove ship from the current channel
-      },
-
-      give_role(ship, role) {
-        return _give_role(ship, role);        // give a role to a given ship
-      },
-
-      remove_role(ship, role) {
-        return _remove_role(ship, role);      // remove a role from a given ship
-      },
-
-      post_here(text) {
-        return _post_here(text);              // post a message in the channel
-      },
-
-      send_dm(ship, text) {
-        return _send_dm(ship, text);          // send a direct message to a ship
-      },
-    },
-  }
-  _o
-  '''
+++  tlon-hooks-make-object
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  =,  acc
+  ::
+  ;<  undef-u=@       try:m  (call-1 'QTS_GetUndefined' ~)
+  ;<  events-str-u=@  try:m
+    (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 'events')) 'events') ~)
+  ::
+  ;<  obj-u=@  try:m  (call-1 'QTS_NewObject' ctx-u ~)
+  ;<  *        try:m
+    %:  ring  'QTS_DefineProp'
+      ctx-u
+      obj-u
+      events-str-u
+      (call-1 'QTS_NewObject' ctx-u ~)
+      undef-u
+      undef-u
+      1
+      1
+      1
+      ~
+    ==
+  ::
+  ;<  events-u=@  try:m  (call-1 'QTS_GetProp' ctx-u obj-u events-str-u ~)
+  ::
+  ;<  *  try:m  (make-function 'get_state' get-state obj-u)
+  ;<  *  try:m  (make-function 'set_state' set-state obj-u)
+  ;<  *  try:m  (make-function 'wish' wish-js obj-u)
+  ;<  *  try:m  (make-function 'slam' slam-js obj-u)
+  ;<  *  try:m  (make-function 'object_to_noun' to-json obj-u)
+  ;<  *  try:m  (make-function 'noun_to_object' of-json obj-u)
+  ;<  *  try:m
+    (make-function 'get_chat_messages_here' get-chat-messages-here obj-u)
+  ::
+  ;<  *  try:m  (make-function 'get_members_here' get-members-here obj-u)
+  ;<  *  try:m  (make-function 'get_roles' get-roles obj-u)
+  ::
+  ::  events
+  ;<  *  try:m  (make-function 'add_user' add-user events-u)
+  ;<  *  try:m  (make-function 'kick_user' kick-user events-u)
+  ;<  *  try:m  (make-function 'give_role' give-role events-u)
+  ;<  *  try:m  (make-function 'remove_role' remove-role events-u)
+  ;<  *  try:m  (make-function 'post_here' post-here events-u)
+  ;<  *  try:m  (make-function 'send_dm' send-dm events-u)
+  ::
+  (return:m obj-u)
 ::
 ++  get-state
   |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
@@ -1019,6 +962,7 @@
 ++  make-function
   |=  $:  name=cord
           gat=$-([@ @ @ @] (script-form @ acc-mold))
+          obj-u=@
       ==
   =/  m  (script:lia-sur:wasm (unit cord) acc-mold)  ::  (unit error=cord)
   ^-  form:m
@@ -1035,13 +979,12 @@
   ;<  err=(unit cord)  try:m  (mayb-error res-u)
   ?^  err  (return:m err)
   ::
-  ;<  global-this-u=@  try:m  (call-1 'QTS_GetGlobalObject' ctx-u ~)
   ;<  nam-val-u=@      try:m  (call-1 'QTS_NewString' ctx-u nam-u ~)  ::  free string value?
   ;<  undef-u=@        try:m  (call-1 'QTS_GetUndefined' ~)
   ;<  *                try:m
     %:  call  'QTS_DefineProp'
       ctx-u
-      global-this-u
+      obj-u
       nam-val-u
       res-u
       undef-u  ::  get
@@ -1204,10 +1147,8 @@
   =,  acc
   ::
   =/  code=cord
-    %-  crip
-    """
-    JSON.parse('{(trip (en:json:html jon))}')
-    """
+    (rap 3 'JSON.parse(\'' (en:json:html jon) '\')' ~)
+  ::
   ;<  res-u=@  try:m
     %:  ding  'QTS_Eval'
       ctx-u
