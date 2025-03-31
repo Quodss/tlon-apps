@@ -99,18 +99,27 @@
   ?^  err  (return:m |+[u.err 'failed to call the exported function'])
   ;<  out=json         try:m  (load-json res-u)
   ;<  acc=acc-mold     try:m  get-acc
-  =/  res=(pair event-result:h (list effect:h))  (return-of-json out wild.acc)
-  (return:m &+[res !>(state.acc)])
+  ?~  res=(mole |.((return-of-json out wild.acc)))
+    (return:m |+[(en:json:html out) 'failed to parse JSON'])
+  (return:m &+[u.res !>(state.acc)])
 ::
 ::  XX check memory conventions, add free calls
 ::
 ++  subj  ^~(!>(..subj))
+++  throw
+  |=  str=cord
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  (ding 'QTS_Throw' ctx-u.acc (make-error str) ~)
+::
 ++  wish-js
   |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
   =/  m  (script:lia-sur:wasm @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute wish-js: at least 1 argument required')
   ;<  str=cord  try:m  (get-js-string argv-u)
   =/  gen=hoon  (ream str)
   =/  vax=vase  (slap subj gen)
@@ -124,7 +133,7 @@
   =/  m  (script:lia-sur:wasm @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 2)
+  ?.  (gte argc-w 2)  (throw 'TypeError: failed to execute slam-js: at least 2 arguments required')
   ;<  idx1-float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u argv-u ~)
   ;<  idx2-float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u (add 8 argv-u) ~)  ::  sizeof JSValue == 8 in wasm
   ?~  idx1=(bind (toi:rd idx1-float) abs:si)
@@ -152,7 +161,7 @@
   =/  m  (script:lia-sur:wasm @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute of-json: at least 1 argument required')
   ;<  idx-float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u argv-u ~)
   ?~  idx=(bind (toi:rd idx-float) abs:si)  (call-1 'QTS_GetNull' ~)
   ;<  acc=acc-mold  try:m  get-acc
@@ -165,7 +174,7 @@
   =/  m  (script:lia-sur:wasm @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute to-json: at least 1 argument required')
   ;<  jon=json  try:m  (load-json argv-u)
   =/  vax=vase  !>(jon)
   ;<  acc=acc-mold  try:m  get-acc
@@ -204,12 +213,12 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute get-roles: at least 1 argument required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ?~  group.bowl  (call-1 'QTS_NewArray' ctx-u ~)
   ;<  jon=json  try:m  (load-json argv-u)
-  =/  ship=(unit @p)  (mole |.((ship-round:dejs jon)))
+  =/  ship=(unit @p)  (ship-round:dejs jon)
   ?~  ship  (call-1 'QTS_NewArray' ctx-u.acc ~)
   =/  =fleet:g  fleet.u.group.bowl
   =/  sev=(unit vessel:fleet:g)  (~(get by fleet) u.ship)
@@ -221,12 +230,12 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute add-user: at least 1 argument required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ?~  group.bowl  (call-1 'QTS_GetNull' ~)
   ;<  jon=json  try:m  (load-json argv-u)
-  ?~  ship=(mole |.((ship-round:dejs jon)))
+  ?~  ship=(ship-round:dejs jon)
     (call-1 'QTS_GetNull' ~)
   =/  =diff:g  [%fleet [u.ship ~ ~] add+~]
   =/  =update:g  [now.bowl diff]
@@ -240,12 +249,12 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute kick-user: at least 1 argument required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ?~  group.bowl  (call-1 'QTS_GetNull' ~)
   ;<  jon=json  try:m  (load-json argv-u)
-  ?~  ship=(mole |.((ship-round:dejs jon)))
+  ?~  ship=(ship-round:dejs jon)
     (call-1 'QTS_GetNull' ~)
   =/  =diff:g  [%fleet [u.ship ~ ~] del+~]
   =/  =update:g  [now.bowl diff]
@@ -259,12 +268,12 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 2)
+  ?.  (gte argc-w 2)  (throw 'TypeError: failed to execute give-role: at least 2 arguments required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ?~  group.bowl  (call-1 'QTS_GetNull' ~)
   ;<  jon=json  try:m  (load-json argv-u)
-  ?~  ship=(mole |.((ship-round:dejs jon)))
+  ?~  ship=(ship-round:dejs jon)
     (call-1 'QTS_GetNull' ~)
   ;<  str=cord  try:m  (get-js-string (add argv-u 8))
   ?.  ((sane %tas) str)  (call-1 'QTS_GetNull' ~)
@@ -280,12 +289,12 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 2)
+  ?.  (gte argc-w 2)  (throw 'TypeError: failed to execute remove-role: at least 2 arguments required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ?~  group.bowl  (call-1 'QTS_GetNull' ~)
   ;<  jon=json  try:m  (load-json argv-u)
-  ?~  ship=(mole |.((ship-round:dejs jon)))
+  ?~  ship=(ship-round:dejs jon)
     (call-1 'QTS_GetNull' ~)
   ;<  str=cord  try:m  (get-js-string (add argv-u 8))
   ?.  ((sane %tas) str)  (call-1 'QTS_GetNull' ~)
@@ -301,7 +310,7 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute post-here: at least 1 argument required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ;<  str=cord  try:m  (get-js-string argv-u)
@@ -320,17 +329,29 @@
   =/  m  (script @ acc-mold)
   ^-  form:m
   =,  arr
-  ?>  (gte argc-w 2)
+  ?.  (gte argc-w 2)  (throw 'TypeError: failed to execute send-dm: at least 2 arguments required')
   ;<  acc=acc-mold  try:m  get-acc
   =+  !<(=bowl:h (need (get-wild 0 wild.acc)))
   ;<  jon=json  try:m  (load-json argv-u)
-  ?~  ship=(mole |.((ship-round:dejs jon)))
+  ?~  ship=(ship-round:dejs jon)
     (call-1 'QTS_GetNull' ~)
   ;<  str=cord  try:m  (get-js-string (add argv-u 8))
   =/  =story:c  ~[inline+~[str]]
   =/  =memo:c  [story [our now]:bowl]
   =/  =action:dm:ch  [u.ship u.ship^now.bowl %add memo ~ `now.bowl]
   (store-json (frond:enjs:format dm+(dm-action:enjs:chj action)))
+::
+++  ship-normalize
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute ship-number-to-str: at least 1 argument required')
+  ;<  jon=json  try:m  (load-json argv-u)
+  ?~  ship=(ship-round:dejs jon)
+    (call-1 'QTS_GetNull' ~)
+  =/  str=cord  (scot %p u.ship)
+  (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 str)) str) ~)
 ::
 ++  get-wild
   |=  [idx=@ wil=wild]
@@ -631,11 +652,16 @@
   |%
   ++  ship-round  :: ensure roundtripping
     |=  jon=json
-    ^-  @p
-    ?~  jon  !!
-    ?+  -.jon  !!
-      %n  (rash p.jon (ifix [doq doq] ;~(pfix (punt sig) fed:ag)))
-      %s  (rash p.jon ;~(pfix (punt sig) fed:ag))
+    ^-  (unit @p)
+    ?~  jon  ~
+    ?+  -.jon    ~
+        ?(%n %s)
+      :-  ~
+      %+  rash  p.jon
+      ;~  pose
+        (full ;~(pfix (punt sig) fed:ag))
+        (ifix [doq doq] ;~(pfix (punt sig) fed:ag))
+      ==
     ==
   ::
   ++  event-h
@@ -696,7 +722,7 @@
       reacts+v-reacts-c
       revision+(su dem:ag)
       content+story:dejs:cj
-      author+ship-round
+      author+(cu need ship-round)
       sent+di
     ==
   ::
@@ -708,7 +734,7 @@
       add+v-post-c
       edit+(ot original+v-post-c essay+essay-c ~)
       del+v-post-c
-      react+(ot post+v-post-c ship+ship-round react+(mu so) ~)
+      react+(ot post+v-post-c ship+(cu need ship-round) react+(mu so) ~)
     ==
   ::
   ++  memo-c
@@ -716,7 +742,7 @@
     =,  dejs:format
     %-  ot
     :~  content/story:dejs:cj
-        author/ship-round
+        author/(cu need ship-round)
         sent/di
     ==
   ++  on-reply-h
@@ -729,7 +755,13 @@
       del+(ot parent+v-post-c original+v-reply-c ~)
     ::
       :-  %react
-      (ot parent+v-post-c reply+v-reply-c ship+ship-round react+(mu so) ~)
+      %-  ot
+        :~
+          parent+v-post-c
+          reply+v-reply-c
+          ship+(cu need ship-round)
+          react+(mu so)
+        ==
     ==
   ++  waiting-hook-h
     |=  wid=wild
@@ -756,9 +788,9 @@
       page+(ot kip+kip-co contact+contact-co ~)
       edit+(ot kip+kip-co contact+contact-co ~)
       wipe+(ar kip-co)
-      meet+(ar ship-round)
-      drop+(ar ship-round)
-      snub+(ar ship-round)
+      meet+(ar (cu need ship-round))
+      drop+(ar (cu need ship-round))
+      snub+(ar (cu need ship-round))
     ==
   ::
   ++  contact-co
@@ -778,7 +810,7 @@
       numb+ni
       date+di
       tint+ni
-      ship+ship-round
+      ship+(cu need ship-round)
       look+so
       flag+flag:dejs:gj
       set+(as value-co)
@@ -791,7 +823,7 @@
             a
     %-  of
     :~
-      ship+ship-round
+      ship+(cu need ship-round)
       id+ni
     ==
   ::
@@ -803,7 +835,7 @@
       `essay:c`[[story ship time] kind-data]
     %-  ot
     :~  content/story:dejs:cj
-        author/ship-round
+        author/(cu need ship-round)
         sent/di
         kind-data/kind-data:dejs:cj
     ==
@@ -929,6 +961,7 @@
   ::
   ;<  *  try:m  (make-function 'get_members_here' get-members-here obj-u)
   ;<  *  try:m  (make-function 'get_roles' get-roles obj-u)
+  ;<  *  try:m  (make-function 'ship_normalize' ship-normalize obj-u)
   ::
   ::  events
   ;<  *  try:m  (make-function 'add_user' add-user events-u)
@@ -954,7 +987,7 @@
   ^-  form:m
   =,  arr
   ;<  acc=acc-mold  try:m  get-acc
-  ?>  (gte argc-w 1)
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute set-state: at least 1 argument required')
   ;<  jon=json  try:m  (load-json argv-u)
   ;<  ~         try:m  (set-acc acc(state jon))
   (call-1 'QTS_NewFloat64' ctx-u 0 ~)
@@ -999,6 +1032,39 @@
     (set-acc acc(js-imports (~(put by js-imports.acc) mag-w gat)))
   (return:m ~)
 ::
+++  make-function-src
+  |=  $:  name=cord
+          src=cord
+          obj-u=@
+      ==
+  =/  m  (script:lia-sur:wasm (unit cord) acc-mold)  ::  (unit error=cord)
+  ^-  form:m
+  =,  arr
+  ;<  acc=acc-mold  try:m  get-acc
+  =,  acc
+  ;<  nam-u=@          try:m  (malloc-write +((met 3 name)) name)
+  ;<  fun-u=@          try:m  (js-eval src)
+  ;<  err=(unit cord)  try:m  (mayb-error fun-u)
+  ?^  err  (return:m err)
+  ;<  undef-u=@        try:m  (call-1 'QTS_GetUndefined' ~)
+  ;<  nam-val-u=@      try:m  (call-1 'QTS_NewString' ctx-u nam-u ~)  ::  free string value?
+  ;<  *                try:m
+    %:  call  'QTS_DefineProp'
+      ctx-u
+      obj-u
+      nam-val-u
+      fun-u
+      undef-u  ::  get
+      undef-u  ::  set
+      0        ::  configurable
+      0        ::  enumerable
+      1        ::  has_value
+      ~
+    ==
+  ::
+  (return:m ~)
+
+::
 ++  js-eval
   |=  code=cord
   =/  m  (script:lia-sur:wasm @ acc-mold)
@@ -1023,7 +1089,7 @@
   ::
   ;<  type-u=@   try:m  (call-1 'QTS_Typeof' ctx-u ptr-u ~)
   ;<  type=cord  try:m  (get-c-string type-u)
-  ?+    type  ~|(json-unsupported-type+type !!)
+  ?+    type  ~&(json-unsupported-type+type (return:m ~))
       ?(%'number' %'bigint')
     ;<  float=@rd  try:m  (call-1 'QTS_GetFloat64' ctx-u ptr-u ~)
     (return:m n+(rsh 3^2 (scot %rd float)))
@@ -1069,7 +1135,7 @@
       ::
       ?:  !=(err-u 0)
         ;<  str=cord  try:m  (get-js-string err-u)
-        ~|(str !!)
+        ~&('GetOwnPropertyNames error'^str (return:m ~))
       ::
       ;<  len-octs=octs  try:m  (memread out-len-u 4)
       =/  len-w=@  q.len-octs
