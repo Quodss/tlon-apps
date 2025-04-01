@@ -6,7 +6,7 @@
 =*  cw            coin-wasm:wasm-sur:wasm
 =*  script-form   script-raw-form:lia-sur:wasm
 =*  script        script:lia-sur:wasm
-=*  stub  !!
+:: =*  stub  !!
 ::
 =<  builder
 |%
@@ -930,15 +930,18 @@
   =,  acc
   ::
   ;<  undef-u=@       try:m  (call-1 'QTS_GetUndefined' ~)
-  ;<  events-str-u=@  try:m
-    (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 'events')) 'events') ~)
+  ;<  effects-str-u=@  try:m
+    (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 'effects')) 'effects') ~)
+  ::
+  ;<  parent-str-u=@  try:m
+    (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 'parent')) 'parent') ~)
   ::
   ;<  obj-u=@  try:m  (call-1 'QTS_NewObject' ctx-u ~)
   ;<  *        try:m
     %:  ring  'QTS_DefineProp'
       ctx-u
       obj-u
-      events-str-u
+      effects-str-u
       (call-1 'QTS_NewObject' ctx-u ~)
       undef-u
       undef-u
@@ -948,7 +951,7 @@
       ~
     ==
   ::
-  ;<  events-u=@  try:m  (call-1 'QTS_GetProp' ctx-u obj-u events-str-u ~)
+  ;<  effects-u=@  try:m  (call-1 'QTS_GetProp' ctx-u obj-u effects-str-u ~)
   ::
   ;<  *  try:m  (make-function 'get_state' get-state obj-u)
   ;<  *  try:m  (make-function 'set_state' set-state obj-u)
@@ -956,6 +959,7 @@
   ;<  *  try:m  (make-function 'slam' slam-js obj-u)
   ;<  *  try:m  (make-function 'object_to_noun' to-json obj-u)
   ;<  *  try:m  (make-function 'noun_to_object' of-json obj-u)
+  ;<  *  try:m  (make-function 'print' print-js obj-u)
   ;<  *  try:m
     (make-function 'get_chat_messages_here' get-chat-messages-here obj-u)
   ::
@@ -963,15 +967,38 @@
   ;<  *  try:m  (make-function 'get_roles' get-roles obj-u)
   ;<  *  try:m  (make-function 'ship_normalize' ship-normalize obj-u)
   ::
-  ::  events
-  ;<  *  try:m  (make-function 'add_user' add-user events-u)
-  ;<  *  try:m  (make-function 'kick_user' kick-user events-u)
-  ;<  *  try:m  (make-function 'give_role' give-role events-u)
-  ;<  *  try:m  (make-function 'remove_role' remove-role events-u)
-  ;<  *  try:m  (make-function 'post_here' post-here events-u)
-  ;<  *  try:m  (make-function 'send_dm' send-dm events-u)
+  ::  effects
+  ;<  *  try:m  (make-function 'add_user' add-user effects-u)
+  ;<  *  try:m  (make-function 'kick_user' kick-user effects-u)
+  ;<  *  try:m  (make-function 'give_role' give-role effects-u)
+  ;<  *  try:m  (make-function 'remove_role' remove-role effects-u)
+  ;<  *  try:m  (make-function 'post_here' post-here effects-u)
+  ;<  *  try:m  (make-function 'send_dm' send-dm effects-u)
+  :: ;<  *        try:m
+  ::   %:  ring  'QTS_DefineProp'
+  ::     ctx-u
+  ::     effects-u
+  ::     parent-str-u
+  ::     obj-u
+  ::     undef-u
+  ::     undef-u
+  ::     0
+  ::     0
+  ::     1
+  ::     ~
+  ::   ==
   ::
   (return:m obj-u)
+::
+++  print-js
+  |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
+  =/  m  (script:lia-sur:wasm @ acc-mold)
+  ^-  form:m
+  =,  arr
+  ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute print-js: at least 1 argument required')
+  ;<  str=cord  try:m  (get-js-string argv-u)
+  ~&  str
+  (call-1 'QTS_NewFloat64' ctx-u 0 ~)
 ::
 ++  get-state
   |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
@@ -1023,7 +1050,7 @@
       undef-u  ::  get
       undef-u  ::  set
       0        ::  configurable
-      0        ::  enumerable
+      1        ::  enumerable
       1        ::  has_value
       ~
     ==
@@ -1032,38 +1059,37 @@
     (set-acc acc(js-imports (~(put by js-imports.acc) mag-w gat)))
   (return:m ~)
 ::
-++  make-function-src
-  |=  $:  name=cord
-          src=cord
-          obj-u=@
-      ==
-  =/  m  (script:lia-sur:wasm (unit cord) acc-mold)  ::  (unit error=cord)
-  ^-  form:m
-  =,  arr
-  ;<  acc=acc-mold  try:m  get-acc
-  =,  acc
-  ;<  nam-u=@          try:m  (malloc-write +((met 3 name)) name)
-  ;<  fun-u=@          try:m  (js-eval src)
-  ;<  err=(unit cord)  try:m  (mayb-error fun-u)
-  ?^  err  (return:m err)
-  ;<  undef-u=@        try:m  (call-1 'QTS_GetUndefined' ~)
-  ;<  nam-val-u=@      try:m  (call-1 'QTS_NewString' ctx-u nam-u ~)  ::  free string value?
-  ;<  *                try:m
-    %:  call  'QTS_DefineProp'
-      ctx-u
-      obj-u
-      nam-val-u
-      fun-u
-      undef-u  ::  get
-      undef-u  ::  set
-      0        ::  configurable
-      0        ::  enumerable
-      1        ::  has_value
-      ~
-    ==
-  ::
-  (return:m ~)
-
+:: ++  make-function-src
+::   |=  $:  name=cord
+::           src=cord
+::           obj-u=@
+::       ==
+::   =/  m  (script:lia-sur:wasm (unit cord) acc-mold)  ::  (unit error=cord)
+::   ^-  form:m
+::   =,  arr
+::   ;<  acc=acc-mold  try:m  get-acc
+::   =,  acc
+::   ;<  nam-u=@          try:m  (malloc-write +((met 3 name)) name)
+::   ;<  fun-u=@          try:m  (js-eval src)
+::   ;<  err=(unit cord)  try:m  (mayb-error fun-u)
+::   ?^  err  (return:m err)
+::   ;<  undef-u=@        try:m  (call-1 'QTS_GetUndefined' ~)
+::   ;<  nam-val-u=@      try:m  (call-1 'QTS_NewString' ctx-u nam-u ~)  ::  free string value?
+::   ;<  *                try:m
+::     %:  call  'QTS_DefineProp'
+::       ctx-u
+::       obj-u
+::       nam-val-u
+::       fun-u
+::       undef-u  ::  get
+::       undef-u  ::  set
+::       0        ::  configurable
+::       1        ::  enumerable
+::       1        ::  has_value
+::       ~
+::     ==
+::   ::
+::   (return:m ~)
 ::
 ++  js-eval
   |=  code=cord
@@ -1227,7 +1253,7 @@
     ==
   ::
   ;<  err=(unit cord)  try:m  (mayb-error res-u)
-  ?^  err  ~|  u.err  !!
+  ?^  err  ~|  u.err  (return:m res-u)
   (return:m res-u)
 ::
 ++  ring  ::  complex call
