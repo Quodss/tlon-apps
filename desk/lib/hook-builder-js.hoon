@@ -1,29 +1,87 @@
 /-  h=hooks, c=channels, cite, co=contacts, g=groups, ch=chat
 /+  wasm=wasm-lia
 /+  cj=channel-json, gj=groups-json, aj=activity-json, chj=chat-json
-/*  bin  %wasm  /quick-js-emcc/wasm
-::
+/*  quick-js-bin  %wasm  /quick-js-emcc/wasm
+::  ^~ shenanigans
+=+
+  =>  [wasm=wasm ..zuse]
+  =>
+    =*  cw            coin-wasm:wasm-sur:wasm
+    =*  script-form   script-raw-form:lia-sur:wasm
+    =*  script        script:lia-sur:wasm
+    |%
+    +$  acc-mold  ::  accumulator type for ++run-once
+      $:  run-u=@                                         ::  runtime 
+          ctx-u=@                                         ::  context
+          fil-u=@                                         ::  file name
+          $=  js-imports                                  ::  JS imports
+          (map @ $-([@ @ @ @] (script-form @ acc-mold)))  ::  map @ -> ([ctx-u=@ this-u=@ argc-w=@ argv-u=@] => val-u=@)
+      ::
+          state=json
+          =wild  :: next idx; free idxes; maps idx <-> unique vase
+      ==
+    ::
+    +$  wild  (qual @ (list @) (map @ vase) (map vase @))
+    ++  arr  (arrows:wasm acc-mold)
+    ++  m  (script:lia-sur:wasm (list cw) acc-mold)
+    ::
+    ::  we don't need to update our memory view
+    ++  emscripten-notify-memory-growth
+      |=  args=(pole cw)
+      (return:m ~)
+    ::
+    ++  qts-host-call-function
+      |=  args=(pole cw)
+      ^-  form:m
+      ?>  ?=  $:  [%i32 ctx-u=@]
+                  [%i32 this-u=@]
+                  [%i32 argc-w=@]
+                  [%i32 argv-u=@]
+                  [%i32 magic-w=@]
+                  ~
+              ==
+          args
+      ::
+      =,  arr  =,  args
+      ;<  acc=acc-mold  try:m  get-acc
+      ;<  val-u=@       try:m
+        ((~(got by js-imports.acc) magic-w) ctx-u this-u argc-w argv-u)
+      (return:m i32+val-u ~)
+    ::
+    ::  not a real time
+    ++  clock-time-get
+      |=  args=(pole cw)
+      ^-  form:m
+      ?>  ?=([[%i32 @] [%i64 @] [%i32 time-u=@] ~] args)
+      =,  arr  =,  args
+      ;<  ~  try:m  (memwrite time-u 8 0)
+      (return:m i32+0 ~)
+    --
+  ^?  |%                   ::  append lead core to keep namespace proper
+  +$  acc-mold  ^acc-mold  ::  but the arms defined in the inner core
+  +$  wild      ^wild      ::  need to be propagated
+  ++  arr       ^arr
+  ::
+  ++  imports
+    ^~  ^-  (import:lia-sur:wasm ^acc-mold)
+    :-  *^acc-mold
+    =/  m  (script:lia-sur:wasm (list cw) ^acc-mold)
+    %-  malt
+    :~
+      ['wasi_snapshot_preview1'^'clock_time_get' clock-time-get]
+      ['env'^'qts_host_call_function' qts-host-call-function]
+      ['env'^'emscripten_notify_memory_growth' emscripten-notify-memory-growth]
+    ==
+  --
+:: =*  stub  !!
 =*  cw            coin-wasm:wasm-sur:wasm
 =*  script-form   script-raw-form:lia-sur:wasm
 =*  script        script:lia-sur:wasm
-:: =*  stub  !!
 ::
 =<  builder
 |%
 +$  hook-gate  $-(args:h outcome:h)
-+$  wild  (qual @ (list @) (map @ vase) (map vase @))
-+$  acc-mold  ::  accumulator type for ++run-once
-  $:  run-u=@                                         ::  runtime 
-      ctx-u=@                                         ::  context
-      fil-u=@                                         ::  file name
-      $=  js-imports                                  ::  JS imports
-      (map @ $-([@ @ @ @] (script-form @ acc-mold)))  ::  map @ -> ([ctx-u=@ this-u=@ argc-w=@ argv-u=@] => val-u=@)
-  ::
-      state=json
-      =wild  :: next idx; free idxes; maps idx <-> unique vase
-  ==
 ::
-++  arr  (arrows:wasm acc-mold)
 ++  builder
   |=  code=cord
   ^-  hook-gate
@@ -42,7 +100,7 @@
   ::
   =/  yil-mold  (each return:h (pair cord cord))
   %-  yield-need:wasm  =<  -
-  %^  (run-once:wasm yil-mold acc-mold)  [bin imports]  %$
+  %^  (run-once:wasm yil-mold acc-mold)  [quick-js-bin imports]  %$
   =/  m  (script:lia-sur:wasm yil-mold acc-mold)
   ^-  form:m
   =,  arr
@@ -1323,40 +1381,4 @@
   ;<  str-u=@  try:m  (call-1 'QTS_GetString' ctx-u val-u ~)
   (get-c-string str-u)
 ::
-++  imports
-  ^~  ^-  (import:lia-sur:wasm acc-mold)
-  :-  *acc-mold
-  =/  m  (script:lia-sur:wasm (list cw) acc-mold)
-  %-  malt
-  :~
-    :-  'wasi_snapshot_preview1'^'clock_time_get'  ::  not a real time
-    |=  args=(pole cw)
-    ^-  form:m
-    ?>  ?=([[%i32 @] [%i64 @] [%i32 time-u=@] ~] args)
-    =,  arr  =,  args
-    ;<  ~  try:m  (memwrite time-u 8 0)
-    (return:m i32+0 ~)
-  ::
-    :-  'env'^'qts_host_call_function'
-    |=  args=(pole cw)
-    ^-  form:m
-    ?>  ?=  $:  [%i32 ctx-u=@]
-                [%i32 this-u=@]
-                [%i32 argc-w=@]
-                [%i32 argv-u=@]
-                [%i32 magic-w=@]
-                ~
-            ==
-        args
-    ::
-    =,  arr  =,  args
-    ;<  acc=acc-mold  try:m  get-acc
-    ;<  val-u=@       try:m
-      ((~(got by js-imports.acc) magic-w) ctx-u this-u argc-w argv-u)
-    (return:m i32+val-u ~)
-  ::
-    :-  'env'^'emscripten_notify_memory_growth'
-    |=  args=(pole cw)
-    (return:m ~)
-  ==
 --
