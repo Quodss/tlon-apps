@@ -4,7 +4,7 @@
 /*  quick-js-bin  %wasm  /quick-js-emcc/wasm
 ::  ^~ shenanigans
 =+
-  =>  [wasm=wasm ..zuse]
+  =>  [wasm=wasm h=h ..zuse]
   =>
     =*  cw            coin-wasm:wasm-sur:wasm
     =*  script-form   script-raw-form:lia-sur:wasm
@@ -24,6 +24,10 @@
     +$  wild  (qual @ (list @) (map @ vase) (map vase @))
     ++  arr  (arrows:wasm acc-mold)
     ++  m  (script:lia-sur:wasm (list cw) acc-mold)
+    ++  get-wild
+      |=  [idx=@ wil=wild]
+      ^-  (unit vase)
+      (~(get by r.wil) idx)
     ::
     ::  we don't need to update our memory view
     ++  emscripten-notify-memory-growth
@@ -48,19 +52,27 @@
         ((~(got by js-imports.acc) magic-w) ctx-u this-u argc-w argv-u)
       (return:m i32+val-u ~)
     ::
-    ::  not a real time
+    ::  returns null time if the bowl is not initialized
     ++  clock-time-get
       |=  args=(pole cw)
       ^-  form:m
       ?>  ?=([[%i32 @] [%i64 @] [%i32 time-u=@] ~] args)
       =,  arr  =,  args
-      ;<  ~  try:m  (memwrite time-u 8 0)
+      ;<  acc=acc-mold  try:m  get-acc
+      ?~  vax=(get-wild 0 wild.acc)
+        ;<  ~  try:m  (memwrite time-u 8 0)
+        (return:m i32+0 ~)
+      =+  !<(=bowl:h u.vax)
+      ::  WASI time is in ns
+      =/  ntime  (mul 1.000.000 (unm:chrono:userlib now.bowl))
+      ;<  ~  try:m  (memwrite time-u 8 ntime)
       (return:m i32+0 ~)
     --
   ^?  |%                   ::  append lead core to keep namespace proper
   +$  acc-mold  ^acc-mold  ::  but the arms defined in the inner core
   +$  wild      ^wild      ::  need to be propagated
   ++  arr       ^arr
+  ++  get-wild  ^get-wild
   ::
   ++  imports
     ^~  ^-  (import:lia-sur:wasm ^acc-mold)
@@ -73,7 +85,6 @@
       ['env'^'emscripten_notify_memory_growth' emscripten-notify-memory-growth]
     ==
   --
-:: =*  stub  !!
 =*  cw            coin-wasm:wasm-sur:wasm
 =*  script-form   script-raw-form:lia-sur:wasm
 =*  script        script:lia-sur:wasm
@@ -264,7 +275,7 @@
   ?~  group.bowl  (call-1 'QTS_NewArray' ctx-u ~)
   =/  =fleet:g  fleet.u.group.bowl
   =/  ships=(list @p)  ~(tap in ~(key by fleet))
-  (store-json a+(turn ships ship:enjs:format))
+  (store-json a+(turn ships ship:enjs))
 ::
 ++  get-roles
   |=  [ctx-u=@ this-u=@ argc-w=@ argv-u=@]
@@ -407,14 +418,15 @@
   ?.  (gte argc-w 1)  (throw 'TypeError: failed to execute ship-number-to-str: at least 1 argument required')
   ;<  jon=json  try:m  (load-json argv-u)
   ?~  ship=(ship-round:dejs jon)
+    ~&  ^-  @t
+        %:  rap  3
+          'ship_normalize: expected string or number, got '
+          (en:json:html jon)
+          ~
+        ==
     (call-1 'QTS_GetNull' ~)
   =/  str=cord  (scot %p u.ship)
   (ding 'QTS_NewString' ctx-u (malloc-write +((met 3 str)) str) ~)
-::
-++  get-wild
-  |=  [idx=@ wil=wild]
-  ^-  (unit vase)
-  (~(get by r.wil) idx)
 ::
 ++  add-wild
   |=  [vax=vase wil=wild]
@@ -704,6 +716,11 @@
       (pairs id+s+(scot %ud id.a) ship+(ship p.a) ~)
     ::
     ==
+  ::
+  ++  ship
+    |=  a=^ship
+    ^-  json
+    s+(scot %p a)
   --
 ::
 ++  dejs

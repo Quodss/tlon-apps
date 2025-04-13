@@ -10,7 +10,6 @@ module.exports = (event) => {
         return {event: {allowed: event}, effects: []};
     }
     event["on-post"].add.essay.author = "~zod";
-    //  const dm = hooks.events.send_dm("~dozreg-toplud", "hello");
     return {event: {allowed: event}, effects: []};
 }
 '''
