@@ -15,7 +15,6 @@ module.exports = (event) => {
       if ("inline" in verse) {
         for (const item of verse.inline) {
           if (typeof item === "string" && item.toLowerCase().includes("cat")) {
-            hooks.print("found")
             return true;
           }
 
@@ -51,8 +50,7 @@ module.exports = (event) => {
   if (!is_cat) {
     return { event: { allowed: event }, effects: [] };
   }
-  hooks.print(is_cat);
-  const dm_effect = effects.send_dm(myShip, 'Someone mentioned cat!');
+  const dm_effect = effects.send_dm(myShip, 'someone said "cat"!');
   return {
     event: { allowed: event },
     effects: [dm_effect]

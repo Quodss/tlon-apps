@@ -1313,8 +1313,20 @@
   ;<  acc=acc-mold  try:m  get-acc
   =,  acc
   ::
+  =/  jon-cod=cord  (en:json:html jon)
+  ::  double backslashes to escape them in JSON.parse
+  =.  jon-cod
+    %+  rap  3
+    %+  rash  jon-cod
+    %+  cook  |=((list @t) +<)
+    %-  star
+    ;~  pose
+      (cold '\\\\' bas)
+      next
+    ==
+  ::
   =/  code=cord
-    (rap 3 'JSON.parse(\'' (en:json:html jon) '\')' ~)
+    (rap 3 'JSON.parse(\'' jon-cod '\')' ~)
   ::
   ;<  res-u=@  try:m
     %:  ding  'QTS_Eval'
