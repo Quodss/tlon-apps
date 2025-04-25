@@ -195,7 +195,7 @@
       ::
       ?(%group-action-3 %group-action-2 %group-action-1 %group-action-0)
     :: =+  !<(action-3=action:v2:g vase)
-    =/  action-3=(unit action:v2:g)  (mole |.(!<(action:v2:g vase)))
+    =/  action-3=(unit action:v2:g)  (mole |.(!<(action:v2:g vase)))  ::  XX hacky fix to prevent a crash when hooks emit effects
     ?~  action-3
       =+  !<(=action:g vase)
       $(mark %group-action-4, vase !>(`action:v5:g`action))

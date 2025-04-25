@@ -1318,8 +1318,7 @@
   =.  jon-cod
     %+  rap  3
     %+  rash  jon-cod
-    %+  cook  |=((list @t) +<)
-    %-  star
+    ^~  %-  star
     ;~  pose
       (cold '\\\\' bas)
       next

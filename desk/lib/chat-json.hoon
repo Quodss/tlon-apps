@@ -553,7 +553,7 @@
       %-  ot
       :~  memo/memo:dejs:dj
           kind/chat-kind:dejs:dj
-          time/(mu (su ;~(pose (full dem:ag) dim:ag)))
+          time/(mu (su ;~(pose (full dem:ag) dim:ag)))  ::  ensure roundtripping
       ==
     ==
   ::

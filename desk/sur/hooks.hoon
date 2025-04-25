@@ -10,7 +10,7 @@
 ::    .name: a human-readable name for the hook
 ::    .version: the version the hook was compiled with
 ::    .src: the source code of the hook
-::    .compiled: the compiled hook
+::    .compiled: the compiled hook (not an actual vase of hook but [$type $nock])
 ::    .state: the current state of the hook
 ::    .config: any configuration data for the instance of the hook
 ::             running on a channel

@@ -5,6 +5,10 @@
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
+::  hok is @t or [$type $nock]
+::  given a vase of hook gate $-(args:h outcome:h)
+::  create `hok` by quoting the noun: [p 1+q]:vax
+::
 =+  !<([~ name=@t hok=$@(@t vase)] arg)
 ;<  our=@p  bind:m  get-our:s
 ;<  ~  bind:m  (watch:s /responses [our %channels-server] /v0/hooks)
